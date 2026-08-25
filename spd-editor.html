@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.11.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.12.1</span></h1>
   </div>
 </div>
 
@@ -148,8 +148,8 @@ const SPD_BORDER = new Set(["│","├","└","┌","┐","┘","┤","┼","─
 const JAVA_SYMBOLS = [
   "◇─","└─else","↻─for:","↻─while:",
   "break","continue","◇─switch:","├─case","└─default","〇─try:","〇─catch:",
-  /* Java 専用：λ:＝ラムダ式、▽─stream:＝ストリーム処理（v1.11.0） */
-  "λ:","▽─stream:"
+  /* Java 専用：λ():＝ラムダ式、▽─stream:＝ストリーム処理（v1.11.0） */
+  "λ():","▽─stream:"
 ];
 const PYTHON_SYMBOLS = [
   "◇─","└─else","↻─for:","↻─while:",
@@ -282,9 +282,16 @@ function renderToolbox(){
     else if (id === "->")   { b.textContent = id; b.title = "型ヒント"; }
     else if (id === "─⊳")   { b.textContent = id; b.title = "継承"; }
     else if (id === "---⊳") { b.textContent = id; b.title = "実装"; }
-    else if (id === "λ:")        { b.textContent = id; b.title = "ラムダ式（Java 専用）"; }
+    else if (id === "λ():")        { b.textContent = id; b.title = "ラムダ式（Java 専用）"; }
     else if (id === "▽─stream:") { b.textContent = id; b.title = "ストリーム処理（Java 専用）"; }
     else b.textContent = id;
+    /* 記号・罫線ボタン（操作系 __xxx 以外）は Shift+クリックで文字入力欄へ挿入できる */
+    if (!id.startsWith("__")){
+      b.title = (b.title ? b.title + "  ／  " : "") + "Shift+クリックで文字入力欄のカーソル位置へ挿入";
+      /* mousedown の既定動作（ボタンへのフォーカス移動）を抑止し、
+         文字入力欄のフォーカスとカーソル位置を保ったまま挿入できるようにする */
+      b.onmousedown = (e) => { if (e.shiftKey) e.preventDefault(); };
+    }
     b.onclick = (e) => applyTool(id, e);
     return b;
   }
@@ -334,6 +341,14 @@ function renderToolbox(){
 
 /* ===== ツール適用（ボタン押下時に呼ばれる。e はクリックイベント） ===== */
 function applyTool(id, e){
+  /* Shift+クリック：記号・罫線を文字入力欄のカーソル位置へ挿入する（グリッドは変更しない）。
+     操作系ボタン（__xxx）は Shift に別の意味があるため対象外。
+     ツールモード・カーソル位置・テキストラン編集状態はいずれも変更しない。 */
+  if (e && e.shiftKey && !id.startsWith("__")){
+    insertIntoCap(id);
+    return;
+  }
+
   /* セルコピー・Export は選択範囲を使うので、選択解除より前に処理する */
   if (id === "__cellcopy"){ copyCells(); return; }
   if (id === "__copy")  { doCopy(e && e.shiftKey); return; }   // 範囲選択時は部分Export／Shift+Export = コメント記号なし
@@ -395,6 +410,19 @@ function applyTool(id, e){
   }
 
   updateInfo();
+}
+
+/* 記号・罫線を文字入力欄（#cap）のカーソル位置へ挿入する。
+   選択範囲があれば置き換え、挿入後はカーソルを挿入文字列の直後へ置く。
+   グリッド・ツールモード・履歴には一切触れない（入力欄の文字列を編集するだけ）。 */
+function insertIntoCap(str){
+  const el = document.getElementById("cap");
+  const s = (el.selectionStart == null) ? el.value.length : el.selectionStart;
+  const t = (el.selectionEnd   == null) ? el.value.length : el.selectionEnd;
+  el.value = el.value.slice(0, s) + str + el.value.slice(t);
+  const pos = s + str.length;
+  el.focus();
+  el.setSelectionRange(pos, pos);
 }
 
 /* ===== カーソル ===== */
