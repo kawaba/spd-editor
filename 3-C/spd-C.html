@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<!-- saved from url=(0071)https://powercampus.work/web/icc/icc/filecabinet/SPD-patterns-java.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<style>
+body {
+   color: black;
+   font-size: 12pt;
+   line-height: 1.2em;
+   margin-left: 50pt;
+}
+h3 {
+   color: black;
+   font-size: 24pt;
+   line-height: 1.0em;
+
+}
+</style>
+</head>
+
+<body>
+<h3>SPD パターン集（C言語編）</h3>
+<hr>
+<pre><code>複合代入演算子の働き
+　│
+　├─ 変数<span class="hljs-keyword">int</span> valueに<span class="hljs-number">10</span>を入れる
+　├─ value += <span class="hljs-number">1</span> を計算する
+　└─ valueをコンソールに表示する
+
+
+サイコロゲーム
+　│
+　├─ サイコロを振って（dice_roll()）戻り値をnumberに代入する
+　└─ ◇─ numberは<span class="hljs-number">6</span>である
+　　　 │　　└─ <span class="hljs-string">"当たり"</span>と表示する
+　　　 └─ <span class="hljs-keyword">else</span>
+　　　 　　　└─ <span class="hljs-string">"はずれ"</span>と表示する
+
+
+サイコロゲーム
+　│
+　├─ サイコロを振って（dice_roll()）出目を変数numberに代入する
+　│
+　└─ 結果を表示する─ ◇─ numberは<span class="hljs-number">6</span>である
+　　　　　　　　　　  　│　　└─ <span class="hljs-string">"当たり"</span>と表示する
+　　　　　　　　　　  　└─ <span class="hljs-keyword">else</span>
+　　　　　　　　　　　　  　　└─ <span class="hljs-string">"はずれ"</span>と表示する
+
+
+サイコロゲーム
+　│
+　├─ サイコロを振って（dice_roll()）出目を変数numberに代入する
+　│
+　└─ 結果を表示する─ ◇─ numberは<span class="hljs-number">6</span>である
+　　　　　　　　　  　　│　　└─ <span class="hljs-string">"当たり"</span>と表示する
+　　　　　　　　　　  　◇─ numberは<span class="hljs-number">2</span>である
+　　　　　　　　　　　  │　　└─ <span class="hljs-string">"大当たり"</span>と表示する
+　　　　　　　　　　　  └─ <span class="hljs-keyword">else</span>
+　　　　　　　　　　　　　　  └─ <span class="hljs-string">"はずれ"</span>と表示する
+
+
+
+平方根を計算する
+  │
+  ├─input.h のgetInt関数で、変数<span class="hljs-keyword">int</span> x に整数を入力する
+  ├─◇─x &lt; <span class="hljs-number">0</span>
+  │      └─ x *= <span class="hljs-number">-1</span>
+  ├─x の平方根を計算して、変数<span class="hljs-keyword">double</span> valueに代入する
+  └─value をコンソールに表示する
+
+
+配列の要素を表示する
+│
+├─整数の配列を作成して、変数<span class="hljs-built_in">array</span> に代入する
+│        └─　<span class="hljs-built_in">array</span> ← {<span class="hljs-number">10</span>, <span class="hljs-number">20</span>, <span class="hljs-number">30</span>}
+│
+└─↻─<span class="hljs-keyword">for</span>:　ループ変数をi として<span class="hljs-built_in">array</span> の要素の数だけ繰り返す
+    │
+    └─<span class="hljs-built_in">array</span>[i]をコンソールに表示する
+
+
+配列の要素を集計する
+  │
+  ├─整数の配列を作成して、変数<span class="hljs-built_in">array</span> に代入する
+  │        └─<span class="hljs-built_in">array</span> ← {<span class="hljs-number">10</span>, <span class="hljs-number">20</span>, <span class="hljs-number">30</span>}
+  ├─合計を入れる変数<span class="hljs-keyword">int</span> total を宣言してゼロを代入する
+  │
+  ├─↻─ <span class="hljs-keyword">for</span>: ループ変数をi として<span class="hljs-built_in">array</span> の要素の数だけ繰り返す
+  │  │
+  │  └─<span class="hljs-built_in">array</span>[i]をtotal に加算する
+  │
+  ├─平均を計算して変数<span class="hljs-keyword">double</span> averageに代入する
+  │    └─total を<span class="hljs-keyword">double</span>に変換し、配列<span class="hljs-built_in">array</span> の要素数で割る
+  │
+  ├─合計を <span class="hljs-string">"合計= 〇〇"</span> の書式でコンソールに表示する
+  └─平均を <span class="hljs-string">"平均= 〇〇. 〇"</span> の書式で小数点以下１桁まで表示する
+
+電卓プログラム
+  │
+  ├─変数<span class="hljs-keyword">int</span> total を宣言しゼロを代入する
+  │
+  ├─合計の計算─↻─ <span class="hljs-keyword">while</span>: <span class="hljs-literal">true</span>
+  │              ├─キーボードから整数を入力して変数numberに代入する力する
+  │              ├─◇─ number は<span class="hljs-number">0</span> である
+  │              │        └─ループを脱出する
+  │              ├─number　をコンソールに表示する
+  │              └─total にnumberを加算する
+  │
+  ├─終了時の区切りとして<span class="hljs-string">"------"</span>を表示する
+  └─ <span class="hljs-string">"合計= 〇〇"</span> の形式でtotal を表示する
+
+
+電卓プログラム
+  │
+  ├─変数<span class="hljs-keyword">int</span> total を宣言しゼロを代入する
+  │
+  ├─合計の計算─↻─ <span class="hljs-keyword">while</span>: キーボードから変数numberに整数を入力し、それが<span class="hljs-number">0</span> 出ない間繰り返す
+  │              ├─numberをコンソールに表示する
+  │              └─total にnumberを加算する
+  │
+  ├─終了時の区切りとして<span class="hljs-string">"------"</span>を表示する
+  └─ <span class="hljs-string">"合計= 〇〇"</span> の形式でtotal を表示する
+
+
+エラーコードの判定
+  │
+  ├─キーボードから変数codeに整数を入力する
+  ├─メッセージを入れる変数<span class="hljs-keyword">char</span>[<span class="hljs-number">100</span>] message を宣言する
+  ├─◇─ <span class="hljs-keyword">switch</span>: codeの値で判定
+  │  ├─<span class="hljs-keyword">case</span> <span class="hljs-number">100</span>→ message　に <span class="hljs-string">"正常終了"</span> を代入する
+  │  ├─<span class="hljs-keyword">case</span> <span class="hljs-number">200</span>　または<span class="hljs-number">201</span> → message　に <span class="hljs-string">"ページが存在しない"</span> を代入する
+  │  └─それ以外→message に <span class="hljs-string">"内部エラー"</span> を代入する
+  │
+  └─ messageをコンソールに表示する
+
+
+テキストファイルのオープン失敗を判定する
+  │
+  ├─fruit.txt を読み込み用に開き、変数fileに代入する
+  ├─◇─ file は<span class="hljs-literal">NULL</span>である
+  │          └─ <span class="hljs-string">"ファイル入力エラー"</span> を表示して<span class="hljs-number">1</span> を返して終了する
+  ├─ <span class="hljs-string">"ファイルを開きました"</span> と表示する
+  └─ file を閉じる
+
+行単位のファイル読み込み
+  │
+  ├─fruit.txt を読み込み用に開き、変数fileに代入する
+  ├─◇─ file は<span class="hljs-literal">NULL</span>である
+  │        └─ <span class="hljs-string">"ファイル入力エラー"</span> を表示して<span class="hljs-number">1</span> を返して終了する
+  │
+  ├─行データを入れる変数line <span class="hljs-keyword">char</span>[<span class="hljs-number">1000</span>] を宣言する
+  ├─↻─ <span class="hljs-keyword">while</span>: fileから<span class="hljs-number">1</span> 行分をlineに読み込み、成功している間繰り返す
+  │  │
+  │  └─ line をコンソールに表示する
+  │
+  │
+  └─file　を閉じる
+
+行単位のファイル書き出し
+  │
+  ├─　整数の配列を作成して、変数<span class="hljs-built_in">array</span> に代入する
+  │      └─<span class="hljs-built_in">array</span> ← {<span class="hljs-number">10</span>, <span class="hljs-number">20</span>, <span class="hljs-number">30</span>}
+  │
+  ├─ output.txt を書き出し用に開き、変数fileに代入する
+  ├─◇─file　は<span class="hljs-literal">NULL</span>である
+  │  │      └─ <span class="hljs-string">"ファイル出力エラー"</span> を表示して<span class="hljs-number">1</span> を返して終了する
+  │  │
+  ├─↻─<span class="hljs-keyword">for</span>:　ループ変数をi として、<span class="hljs-built_in">array</span> の要素の数だけ繰り返す
+  │  │
+  │  └─ <span class="hljs-built_in">array</span>[i] をfileに出力する
+  │
+  ├─ file を閉じる
+  └─ <span class="hljs-number">0</span>を返して終了する
+
+関数: mile2km
+  │
+  ├─定義
+  │    ├─　目的：マイルの値をキロメートルに変換して返す
+  │    ├─　引数
+  │    │      └─ <span class="hljs-keyword">double</span> mile :　マイルの値
+  │    └─　戻り値
+  │            └─ <span class="hljs-keyword">double</span> : キロメートルの値
+  │
+  └─処理
+      ├─マイルをキロメートルに変換して変数kmに代入する
+      │      ├─ km = mile * <span class="hljs-number">1.609</span>
+      │      └─ km を小数点以下<span class="hljs-number">2</span> 桁までに四捨五入する
+      │
+      └─ km を返す
+
+<span class="hljs-comment">// 対応するＣ言語ソースコード</span>
+#include &lt;math.h&gt;
+<span class="hljs-keyword">double</span> mile2km(<span class="hljs-keyword">double</span> mile)
+{
+    <span class="hljs-keyword">double</span> km;
+    km = mile * <span class="hljs-number">1.609</span>;
+    <span class="hljs-comment">/* 小数点以下2桁に四捨五入 */</span>
+    km = round(km * <span class="hljs-number">100.0</span>) / <span class="hljs-number">100.0</span>;
+    <span class="hljs-keyword">return</span> km;
+}
+
+
+構造体: product
+  │
+  ├─型番: <span class="hljs-keyword">char</span> number[<span class="hljs-number">20</span>]
+  ├─品名: <span class="hljs-keyword">char</span> name[<span class="hljs-number">100</span>]
+  ├─価格: <span class="hljs-keyword">int</span> price
+  └─在庫の有無: <span class="hljs-keyword">bool</span> stock
+
+<span class="hljs-comment">// 対応するＣ言語ソースコード</span>
+<span class="hljs-keyword">typedef</span> <span class="hljs-keyword">struct</span> {
+    <span class="hljs-keyword">char</span> number[<span class="hljs-number">20</span>];
+    <span class="hljs-keyword">char</span> name[<span class="hljs-number">100</span>];
+    <span class="hljs-keyword">int</span> price;
+    <span class="hljs-keyword">bool</span> stock;
+} Product;
+
+列挙型: suit
+  │
+  ├─クラブ: CLUB
+  ├─ダイア: DIAMOND
+  ├─ハート: HEART
+  └─スペード: SPADE
+
+<span class="hljs-comment">// 対応するＣ言語ソースコード</span>
+<span class="hljs-keyword">typedef</span> <span class="hljs-keyword">enum</span> {
+    CLUB,
+    DIAMOND,
+    HEART,
+    SPADE
+} Suit;
+
+
+構造体の配列
+  │
+  ├─ Product構造体の配列を作成して、変数productsに代入する
+  │  └─ products ←｛　 {<span class="hljs-string">"MT890"</span>, <span class="hljs-string">"ステンレスネジ"</span>, <span class="hljs-number">280</span>, <span class="hljs-literal">false</span>},
+  │                       {<span class="hljs-string">"MT810"</span>, <span class="hljs-string">"タッピングネジ"</span>, <span class="hljs-number">160</span>, <span class="hljs-literal">true</span>},
+  │                       {<span class="hljs-string">"MT900"</span>, <span class="hljs-string">"スクリューネジ"</span>, <span class="hljs-number">330</span>, <span class="hljs-literal">true</span>}  }
+  │
+  └─↻─ <span class="hljs-keyword">for</span>: ループ変数をi としてproductsの要素の数だけ繰り返す
+      │
+      └─ products[i]の商品名と価格をコロンとタブで区切って表示する
+</code></pre></body></html>

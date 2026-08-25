@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>SPD for Java</title>
+<style>
+/* ---- フォント指定 ----
+   本文＝BIZ UDPゴシック(プロポーショナル)／見出し＝游ゴシック体(太字)／
+   SPD・Javaコード＝BIZ UDゴシック(等幅)
+   フォント名は環境ごとに登録名が異なるため、日本語名・英語名を併記する。 */
+body, table, th, td, blockquote {
+   font-family: "BIZ UDPゴシック", "BIZ UDPGothic", "Meiryo", "メイリオ",
+                "Yu Gothic UI", "Hiragino Sans", sans-serif;
+}
+
+/* SPD・Javaコードは等幅のBIZ UDゴシック(Pなし＝等幅。半角＝全角の1/2幅で罫線が揃う) */
+pre, code {
+   font-family: "BIZ UDゴシック", "BIZ UDGothic",
+                "MS ゴシック", "MS Gothic", monospace;
+}
+
+/* 見出しは游ゴシック体の太字 */
+h1, h2, h3, h4, h5, h6 {
+   font-family: "游ゴシック体", "YuGothic", "游ゴシック Medium", "Yu Gothic Medium",
+                "游ゴシック", "Yu Gothic", sans-serif;
+   font-weight: bold;
+}
+
+body {
+   color: black;
+   font-size: 14pt;
+   line-height: 1.5em;
+   margin-left: 60pt;
+}
+
+/* ---- 見出し ---- */
+h1 { font-size: 20pt; border-bottom: 2px solid #555; padding-bottom: 4pt; margin-top: 24pt; }
+h2 { font-size: 17pt; border-bottom: 1px solid #ddd; padding-bottom: 3pt; margin-top: 24pt; }
+h3 { font-size: 15pt; margin-top: 18pt; }
+h4 { font-size: 14pt; margin-top: 14pt; }
+h5, h6 { font-size: 13pt; margin-top: 12pt; }
+
+/* ---- 本文・リスト ---- */
+p  { margin: 6pt 0; }
+ul, ol { margin: 6pt 0; padding-left: 22pt; }
+li { margin: 2pt 0; }
+
+/* ---- コードブロック(SPD・Java共通) ---- */
+pre {
+   font-size: 12pt;
+   line-height: 1.4em;
+   white-space: pre;
+   overflow-x: auto;
+   background-color: #fafafa;
+   border: 1px solid #e8e8e8;
+   border-left: 4px solid #cbd8cb;   /* SPD・その他 */
+   padding: 8pt 10pt;
+   margin: 8pt 0;
+   tab-size: 4;
+   -moz-tab-size: 4;
+}
+pre code {
+   font-size: inherit;
+   background: none;
+   border: none;
+   padding: 0;
+   white-space: pre;
+}
+.small {
+    font-size: 12px;
+    line-height: 1.2;
+}
+/* Javaコードは左罫の色を変えて区別する */
+pre.java { border-left-color: #b9cbe2; background-color: #f8fafd; }
+
+/* ---- インラインコード ---- */
+code {
+   font-size: 95%;
+   background-color: #f2f2f2;
+   border-radius: 3px;
+   padding: 0 3px;
+}
+
+/* ---- 表 ---- */
+table {
+   border-collapse: collapse;
+   font-size: 12pt;
+   line-height: 1.4em;
+   margin: 8pt 0;
+}
+th, td {
+   border: 1px solid #d5d5d5;
+   padding: 4pt 8pt;
+   text-align: left;
+   vertical-align: top;
+}
+th { background-color: #f2f4f6; }
+
+/* ---- 引用・区切り線 ---- */
+blockquote {
+   margin: 8pt 0 8pt 0;
+   padding: 4pt 12pt;
+   border-left: 4px solid #ddd;
+   background-color: #fcfcfa;
+   color: #333;
+}
+hr { border: none; border-top: 1px solid #bbb; margin: 20pt 0; }
+
+/* ---- チェックリスト ---- */
+ul.checklist { list-style: none; padding-left: 4pt; }
+ul.checklist li { text-indent: -1.4em; padding-left: 1.4em; }
+</style>
+</head>
+<body>
+<h1>SPD for Java</h1>
+<p class="small">Java言語用のSPDのパターンをまとめた。<br>
+Gemini Gemを使ってSPDからコードを生成した。<br>
+Gem用には「カスタム指示」に3400文字（約1000行）の指示を入力し、「知識」にpom.xmlを置いた。<br>
+全ての生成を行うための使用量は、無償ユーザーの一週間の上限の２％である。</p>
+<h2>1.  コメント(※)</h2>
+<p>・※から行末まではコメントであり、SPDの構造・処理としては解釈しない。<br>
+・コメントは生成コードの対応する位置に // コメントとして転記する。<br>
+・引用符(&quot;…&quot;)・鉤括弧(「…」)内の※はコメント開始とみなさない。<br>
+・※だけの行は構造解析上は存在しないものとして扱う(縦線の連結を切らない)。</p>
+<pre><code>税込み価格の計算(※による1行コメント)
+│
+├─変数int priceにキーボードから価格を入力する ※税抜き価格
+│  ※ここからは税込み価格の計算と表示
+└─priceに1.1を掛けて整数に丸め、&quot;税込=〇〇&quot;の形式で表示する
+</code></pre>
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example1 {
+    public static void main(String[] args) {
+        int price = Input.getInt(); // 税抜き価格
+
+        // ここからは税込み価格の計算と表示
+        System.out.printf(&quot;税込=%d%n&quot;, Math.round(price * 1.1));
+    }
+}
+</code></pre>
+<h2>2. 基本構造</h2>
+<h3>2.1 順次構造</h3>
+<pre><code>複合代入演算子の働き(順次構造)
+│
+├─変数var に10を入れる
+├─var +=1 を計算する
+└─var を表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">/*
+public class Example2_1 {
+    public static void main(String[] args) {
+        int var = 10;
+        var += 1;
+        System.out.println(var);
+    }
+}
+</code></pre>
+<h3>2.2. 分岐構造</h3>
+<ul>
+<li>if文</li>
+</ul>
+<pre><code>平方根を計算する(if文)
+│
+├─変数x にキーボードから整数を入力する
+├─◇─xは負
+│        └─x *= -1
+├─ｘの平方根を計算して、変数value に代入する
+└─value を表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_1 {
+    public static void main(String[] args) {
+        int x = Input.getInt();
+        if (x &lt; 0) {
+            x *= -1;
+        }
+        double value = Math.sqrt(x);
+        System.out.println(value);
+    }
+}
+</code></pre>
+<ul>
+<li>if-else文</li>
+</ul>
+<pre><code>サイコロゲーム(if-else 文)
+│
+├─jp.kwebs.toolsライブラリからDiceクラスをインポートする
+├─サイコロを振って(Dice.rol1()) 出目を変数num に代入する
+└─◇──num は6 である
+    │    └─ "当たり" と表示する
+    └─ else
+          └─ "はずれ" と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Dice;
+public class Example2_2_2 {
+    public static void main(String[] args) {
+        int num = Dice.roll();
+
+        if (num == 6) {
+            System.out.println("当たり");
+        } else {
+            System.out.println("はずれ");
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>if else-if文</li>
+</ul>
+<pre><code>身長の階級(if-else if文)
+│
+├─キーボードから身長(cm)を変数heightに入力する
+│    └─入力例：身長 &gt; 175.5
+│
+└─身長の階級を求める
+      └─◇─180cm以上
+          │    └─&quot;A&quot;と表示する
+          ◇─170cm以上
+          │    └─&quot;B&quot;と表示する
+          ◇─160cm以上
+          │    └─&quot;C&quot;と表示する
+          └─else
+                └─&quot;D&quot;と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_3 {
+    public static void main(String[] args) {
+        double height = Input.getDouble(&quot;身長 &gt; &quot;);
+        if (height &gt;= 180.0) {
+            System.out.println(&quot;A&quot;);
+        } else if (height &gt;= 170.0) {
+            System.out.println(&quot;B&quot;);
+        } else if (height &gt;= 160.0) {
+            System.out.println(&quot;C&quot;);
+        } else {
+            System.out.println(&quot;D&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>switch文</li>
+</ul>
+<pre><code>エラーコードの判定(switch文)
+  │
+  ├─キーボードから変数int codeに整数のエラーコードを入力する
+  └─◇─switch(code)
+      ├─case     0         →  「正常終了」と表示する
+      ├─case     200 か201 →  「ページが存在しない」と表示する
+      └─default  それ以外  →  「内部エラー」と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_4 {
+    public static void main(String[] args) {
+        int code = Input.getInt();
+        switch (code) {
+            case 0 -&gt; System.out.println(&quot;正常終了&quot;);
+            case 200, 201 -&gt; System.out.println(&quot;ページが存在しない&quot;);
+            default -&gt; System.out.println(&quot;内部エラー&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>ブロック文付きswitch文</li>
+</ul>
+<pre><code>エラーコードの判定(switch文、ブロック)
+│
+├─変数int s にキーボードからエラーコードを入力する
+└─◇─switch(s)
+    ├─case 100      → &quot;正常終了&quot; と表示する
+    ├─case 200, 201 →  ┬
+    │                    ├─&quot;ページが存在しない&quot; と表示する
+    │                    └─&quot;ステータス番号＝&quot;+s を表示する
+    │
+    └─default        → &quot;内部エラー&quot; と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_5 {
+    public static void main(String[] args) {
+        int s = Input.getInt();
+        switch (s) {
+            case 100 -&gt; System.out.println(&quot;正常終了&quot;);
+            case 200, 201 -&gt; {
+                System.out.println(&quot;ページが存在しない&quot;);
+                System.out.println(&quot;ステータス番号＝&quot; + s);
+            }
+            default -&gt; System.out.println(&quot;内部エラー&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>switch式</li>
+</ul>
+<pre><code>エラーコードの判定(switch式)
+  │
+  ├─キーボードから変数int codeに整数のエラーコードを入力する
+  ├─String msg = ◇─switch(code)
+  │               ├─case     0         →  「正常終了」
+  │               ├─case     200 か201 →  「ページが存在しない」
+  │               └─default  それ以外  →  「内部エラー」
+  │
+  └─ msg  を表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_6 {
+    public static void main(String[] args) {
+        int code = Input.getInt();
+        String msg = switch (code) {
+            case 0 -&gt; &quot;正常終了&quot;;
+            case 200, 201 -&gt; &quot;ページが存在しない&quot;;
+            default -&gt; &quot;内部エラー&quot;;
+        };
+        System.out.println(msg);
+    }
+}
+</code></pre>
+<ul>
+<li>ブロック文付きswitch式</li>
+</ul>
+<pre><code>エラーコードの判定(switch式、ブロック)
+│
+├─変数int s にキーボードからエラーコードを入力する
+└─String msg = ◇─switch(s)
+                 ├─case 100       → &quot;正常終了&quot;
+                 ├─case 200, 201  →  ┬
+                 │                     ├─&quot;ステータス番号＝&quot;+s を表示する
+                 │                     └─&quot;ページが存在しない&quot; を返す
+                 │
+                 └─default        → &quot;内部エラー&quot;
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_2_7 {
+    public static void main(String[] args) {
+        int s = Input.getInt();
+        String msg = switch (s) {
+            case 100 -&gt; &quot;正常終了&quot;;
+            case 200, 201 -&gt; {
+                System.out.println(&quot;ステータス番号＝&quot; + s);
+                yield &quot;ページが存在しない&quot;;
+            }
+            default -&gt; &quot;内部エラー&quot;;
+        };
+        System.out.println(msg);
+    }
+}
+</code></pre>
+<h2>2.3. 反復構造</h2>
+<h3>for文</h3>
+<ul>
+<li>インデックス付きfor文</li>
+</ul>
+<pre><code>ループ変数を使って指定回数繰り返すfor 文
+│
+└─↻─for: 3 回繰り返す
+   │
+   └─ループ変数と&quot;Hello&quot; を空白で区切って表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">public class Example2_3_1 {
+    public static void main(String[] args) {
+        for (int i = 0; i &lt; 3; i++) {
+            System.out.println(i + &quot; Hello&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>拡張for文</li>
+</ul>
+<pre><code>拡張for 文
+│
+├─整数のリストを作成して、変数listに代入する
+│        └──list = [10, 20, 30]
+│
+└─全ての要素を表示する─↻─for: n ← list
+                         │
+                         └─ nをコンソールに表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.util.List;
+public class Example2_3_2 {
+    public static void main(String[] args) {
+        var list = List.of(10, 20, 30);
+
+        for (var n : list) {
+            System.out.println(n);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>拡張for文でのリスト処理</li>
+</ul>
+<pre><code>リストの要素を集計する(拡張for 文、集計処理)
+│
+├─準備┬─整数のリストを作成して、変数listに代入する
+│      │        └──list = [10, 20, 30]
+│      └─合計を入れる変数int total を宣言してゼロを代入する
+│
+├─合計を計算する─↻─for: n ← list
+│                 │
+│                 └─ nをtotal に加算する
+│
+├─平均を計算する
+│        ├─total をdoubleにキャストしてlistの要素数で割ってaverageに代入する
+│        └─average を小数点以下1 桁までに四捨五入して、averageに再代入する
+│
+└─結果を表示する┬─合計(total )を &quot;合計＝〇〇&quot; の形式でコンソールに表示する
+                  └─平均(average )を &quot;平均＝〇〇. 〇&quot; の形式でコンソールに表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.util.List;
+import jp.kwebs.tools.Tools;
+public class Example2_3_3 {
+    public static void main(String[] args) {
+        var list = List.of(10, 20, 30);
+        int total = 0;
+
+        for (var n : list) {
+            total += n;
+        }
+
+        double average = (double) total / list.size();
+        average = Tools.round(average, 1);
+
+        System.out.printf(&quot;合計＝%d%n&quot;, total);
+        System.out.printf(&quot;平均＝%.1f%n&quot;, average);
+    }
+}
+</code></pre>
+<ul>
+<li>拡張for文でのオブジェクトのリストの処理</li>
+</ul>
+<pre><code>オブジェクトのリスト(拡張for 文、オブジェクトのリスト)
+│
+├─Product クラスのインスタンスのリストを作る
+│    └─products = (new Product(MT890, ステンレスネジ, 280, false),
+│                    new Product(MT810, タッピングネジ, 160, true),
+│                    new Product(MT900, スクリューネジ, 330, true) )
+│
+└─productsの要素を表示する
+      └─↻─ for: p ← products
+         │
+         └─商品名(p.name)と価格(p.price )をコロンとタブで区切って表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.util.List;
+public class Example2_3_4 {
+    public static void main(String[] args) {
+        var products = List.of(
+            new Product(&quot;MT890&quot;, &quot;ステンレスネジ&quot;, 280, false),
+            new Product(&quot;MT810&quot;, &quot;タッピングネジ&quot;, 160, true),
+            new Product(&quot;MT900&quot;, &quot;スクリューネジ&quot;, 330, true)
+        );
+
+        for (var p : products) {
+            System.out.println(p.name + &quot;:\t&quot; + p.price);
+        }
+    }
+}
+</code></pre>
+<h3>while文</h3>
+<ul>
+<li>無限ループのパターン</li>
+</ul>
+<pre><code>電卓プログラム(while 文、無限ループのパターン)
+│
+├─変数int total を宣言しゼロを代入する
+├─合計を計算する──↻─while: true
+│                   │
+│                   ├─変数int numberにキーボードから整数を入力する
+│                   ├─◇─numberは0 である
+│                   │          └─ breakでループを脱出する
+│                   ├─numberをコンソールに表示する
+│                   └─total に─を加算する
+│
+│
+└─結果の表示┬─終了時の区切りとして&quot;------&quot;を表示する
+              └─ &quot;合計= 〇〇&quot; の形式でtotal を表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_3_5 {
+    public static void main(String[] args) {
+        int total = 0;
+
+        while (true) {
+            int number = Input.getInt();
+            if (number == 0) {
+                break;
+            }
+            System.out.println(number);
+            total += number;
+        }
+
+        System.out.println(&quot;------&quot;);
+        System.out.printf(&quot;合計= %d%n&quot;, total);
+    }
+}
+</code></pre>
+<ul>
+<li>実行文を含む条件判定</li>
+</ul>
+<pre><code>電卓プログラム(while 文、入力して条件判定のパターン)
+│
+├─準備┬─変数int total を宣言しゼロを代入する
+│      └─変数int numberを宣言する
+│
+├─合計を計算する
+│      └─↻─while: numberにキーボードから整数を入力し、それが0 でない間繰り返す
+│         │
+│         ├─number をコンソールに表示する
+│         └─totalに─を加算する
+│
+├─終了時の区切りとして&quot;------&quot;を表示する
+└─ &quot;合計= 〇〇&quot; の形式でtotal を表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Input;
+public class Example2_3_6 {
+    public static void main(String[] args) {
+        int total = 0;
+        int number;
+
+        while ((number = Input.getInt()) != 0) {
+            System.out.println(number);
+            total += number;
+        }
+
+        System.out.println(&quot;------&quot;);
+        System.out.printf(&quot;合計= %d%n&quot;, total);
+    }
+}
+</code></pre>
+<h2>3. ファイル入出力処理と例外処理</h2>
+<h3>3.1 リストの出力</h3>
+<ul>
+<li>リストの一括出力</li>
+</ul>
+<pre><code>リストをテキストファイルに一括書き出しする(例外処理)
+│
+├─準備┬─整数のリストを作る──list = [10, 20, 30]
+│      └─変数var pathにoutput.txtのパスを代入する
+│
+└─一括出力─〇─ try
+              │    └─リストをoutput.txtに一括出力する
+              │
+              〇─catch: IOException e
+                    └─&quot;ファイル出力エラー&quot; と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+public class Example2_3_7 {
+    public static void main(String[] args) {
+        var list = List.of(&quot;10&quot;, &quot;20&quot;, &quot;30&quot;);
+        var path = Path.of(&quot;output.txt&quot;);
+
+        try {
+            Files.write(path, list);
+        } catch (IOException e) {
+            System.out.println(&quot;ファイル出力エラー&quot;);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>リストを1行ずつ出力する</li>
+</ul>
+<pre><code>行単位のファイル書き出し(例外処理、リソース付きtry 文)
+│
+├─準備┬─リストを作って変数listに代入する：var list = List.of(10, 20, 30)
+│      └─path = output.txtのパス
+│
+└─１行ずつ書き出す─〇─try: path によりPrintWriter を作って変数out に代入する
+                      │  └─↻─for: listから毎回１要素を取り出して変数lineに代入する
+                      │      │
+                      │      └─ out.printlnでlineを出力する
+                      │
+                      〇─catch: IOException e
+                          └─ &quot;ファイル出力エラー&quot; と表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+public class Example2_3_8 {
+    public static void main(String[] args) {
+        var list = List.of(10, 20, 30);
+        var path = Path.of(&quot;output.txt&quot;);
+
+        try (var out = new PrintWriter(Files.newBufferedWriter(path))) {
+            for (var line : list) {
+                out.println(line);
+            }
+        } catch (IOException e) {
+            System.out.println(&quot;ファイル出力エラー&quot;);
+        }
+    }
+}
+</code></pre>
+<h3>3.2 ファイル入力</h3>
+<ul>
+<li>
+<p>テキストの一括入力</p>
+</li>
+<li>
+<p>テキストファイルから一行ずつ入力する</p>
+</li>
+</ul>
+<h2>4. クラスとオブジェクト</h2>
+<h3>4.1 クラスメソッド</h3>
+<pre><code>クラスメソッド：mile2km
+│
+├─目的：マイルを距離に変換する
+├─引数
+│    └─double mile：マイルの値
+├─戻り値
+│      └─double： キロメートルの値
+│
+└─処理
+      ├─マイルをキロメートルに変換する
+      │      ├─km = mile * 1.609
+      │      └─km = km を小数点以下2 桁までに四捨五入する
+      └─ km を返す
+</code></pre>
+
+<pre class="java"><code class="language-java">import jp.kwebs.tools.Tools;
+public class Example4_1 {
+
+    /**
+     * マイルを距離に変換する
+     * @param mile マイルの値
+     * @return キロメートルの値
+     */
+    public static double mile2km(double mile) {
+        double km = mile * 1.609;
+        km = Tools.round(km, 2);
+        return km;
+    }
+}
+</code></pre>
+<h3>4.2. レコード</h3>
+<pre><code>レコード：Product
+│
+├─目的：製品レコード
+└─フィールド
+      ├─型番：String number
+      ├─品名：String name
+      ├─価格：int price
+      └─在庫の有無：boolean stock
+</code></pre>
+
+<pre class="java"><code class="language-java">/** 製品レコード */
+public record Product(
+    String number, // 型番
+    String name,   // 品名
+    int price,     // 価格
+    boolean stock  // 在庫の有無
+) {}
+</code></pre>
+<h3>4.3. インタフェース</h3>
+<pre><code>    インタフェース：versionable
+    │
+    ├─目的：バージョン番号を返す
+    │
+    ├─インスタンスメソッド：virtual version
+    │      ├─目的：バージョン番号を返す
+    │      ├─引数：なし
+    │      └─戻り値：String、バージョン番号
+    │
+    └─インスタンスメソッド：virtual versionEx
+            ├─目的：バージョン番号と説明を返す
+            ├─引数：なし
+            └─戻り値：String、バージョン番号と簡単な説明
+</code></pre>
+
+
+<pre class="java"><code class="language-java">/** バージョン番号を返す */
+public interface Versionable {
+
+    /**
+     * バージョン番号を返す
+     * @return バージョン番号
+     */
+    String version();
+
+    /**
+     * バージョン番号と説明を返す
+     * @return バージョン番号と簡単な説明
+     */
+    String versionEx();
+}
+</code></pre>
+<h3>4.4. クラス</h3>
+<ul>
+<li>基本的なクラス</li>
+</ul>
+<pre><code>クラス：Member
+│
+├─目的：会員を表すクラス　　　　    ※コロンは全角の：を使う
+│
+├─フィールド
+│  ├─番号：int uid 　　　　　　　　※フィールドの説明と型、フィールド変数名を書く
+│  └─名前：String name
+│
+├─自動生成　※記述した項目のメンバを自動生成する（自動生成したいものだけを記述する）
+│  │        ※自動生成を指定した上で、同じメソッドを再定義した場合はそちらが有効になる
+│  │
+│  ├─コンストラクタ：引数なし　　　※引数のないコンストラクタ
+│  ├─コンストラクタ        　　　　※すべてのフィールドを引数に取るコンストラクタ
+│  ├─ゲッター　　　　　　　　　　　※全フィールドのゲッター
+│  ├─セッター　　　　　　　　　　　※全フィールドのセッター
+│  ├─toString　　　　　　　　　　　※toString()メソッド
+│  └─等値判定　← uid　　　　　　　※equals()とhashCode()メソッド、uidを判定に使う
+│
+├─メソッド：membership_fee　　　　　※インスタンスメソッドと同義
+│  │
+│  ├─目的：会費額を返す
+│  ├─引数：なし
+│  ├─戻り値: int 、会費の額　　　　※戻り値型と戻り値の説明を読み点で区切って書く
+│  └─処理
+│        └─FEE の値を返す
+│
+│※※※※※　クラスメンバの記述は、まとめておくと見やすい　※※※※※※
+│
+├─クラス変数：
+│  └─会費額：# final int FEE = 5000　　※会議の基本月額
+│
+├─クラスメソッド: doSomethig
+│  │
+│  ├─目的：クラスメソッドの例を示す
+│  ├─引数：なし
+│  ├─戻り値：なし
+│  └─処理
+│        └─※詳細を省略（何かの処理を書く）
+│
+└─クラスメソッド：main　※mainメソッドは、目的、引数、戻り値を省略してよい
+    │
+    └─処理
+          ├─（100, "田中宏" ）でインスタンスを作って変数memberに代入する
+          └─memberをコンソールに表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.util.Objects;
+// 会員を表すクラス
+public class Member {
+
+    protected static final int FEE = 5000; // 会費額 (会議の基本月額)
+
+    private int uid;     // 番号
+    private String name; // 名前
+
+    // 自動生成：コンストラクタ：引数なし
+    public Member() {
+    }
+
+    // 自動生成：コンストラクタ（全引数）
+    public Member(int uid, String name) {
+        this.uid = uid;
+        this.name = name;
+    }
+
+    // 自動生成：ゲッター
+    public int getUid() {
+        return uid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    // 自動生成：セッター
+    public void setUid(int uid) {
+        this.uid = uid;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    // 自動生成：toString
+    @Override
+    public String toString() {
+        return &quot;Member[uid=&quot; + uid + &quot;, name=&quot; + name + &quot;]&quot;;
+    }
+
+    // 自動生成：等値判定 ← uid
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Member other)) {
+            return false;
+        }
+        return uid == other.uid;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(uid);
+    }
+
+    /**
+     * 会費額を返す
+     * @return 会費の額
+     */
+    public int membership_fee() {
+        return FEE;
+    }
+
+    /** クラスメソッドの例を示す */
+    public static void doSomethig() {
+        // 詳細を省略（何かの処理を書く）
+    }
+
+    public static void main(String[] args) {
+        var member = new Member(100, &quot;田中宏&quot;);
+        System.out.println(member);
+    }
+}
+</code></pre>
+<ul>
+<li>コンストラクタのオーバーロード</li>
+</ul>
+<pre><code>クラス：Joining
+  │
+  ├─目的：CSV 文字列を生成する
+  │
+  ├─フィールド
+  │    ├─CSV 文字列：String csv
+  │    └─区切り文字：String delimiter
+  │
+  ├─自動生成
+  │    ├─コンストラクタ
+  │    └─ゲッター
+  │
+  ├─コンストラクタ　※引数が1 つのコンストラクタ
+  │    ├─引数
+  │    │    └─区切り文字：String delimiter
+  │    └─処理
+  │          ├─フィールドcsv に空文字""を代入する
+  │          └─フィールドdelimiter に引数のdelimiter を代入する
+  │
+  ├─コンストラクタ　※引数のないコンストラクタ
+  │    ├─引数：なし
+  │    └─処理
+  │          ├─フィールドcsv に空文字""を代入する
+  │          └─フィールドdelimiter に"," を代入する
+  │
+  └─メソッド：add
+        ├─目的：CSV 文字列に新しい文字列を連結する
+        ├─引数
+        │    └─追加する文字列：String s
+        ├─戻り値：なし
+        └─処理
+              └─◇─csv は空文字である
+                  │    └─csv にs を代入する
+                  └─else
+                        └─ csvに、delimiter + s を連結する
+</code></pre>
+
+
+<pre class="java"><code class="language-java">// CSV 文字列を生成する
+public class Joining {
+
+    private String csv;       // CSV 文字列
+    private String delimiter; // 区切り文字
+
+    // 自動生成：コンストラクタ（全引数）
+    public Joining(String csv, String delimiter) {
+        this.csv = csv;
+        this.delimiter = delimiter;
+    }
+
+    // 引数が1 つのコンストラクタ
+    public Joining(String delimiter) {
+        this.csv = &quot;&quot;;
+        this.delimiter = delimiter;
+    }
+
+    // 引数のないコンストラクタ
+    public Joining() {
+        this.csv = &quot;&quot;;
+        this.delimiter = &quot;,&quot;;
+    }
+
+    // 自動生成：ゲッター
+    public String getCsv() {
+        return csv;
+    }
+
+    public String getDelimiter() {
+        return delimiter;
+    }
+
+    /**
+     * CSV 文字列に新しい文字列を連結する
+     * @param s 追加する文字列
+     */
+    public void add(String s) {
+        if (csv.isEmpty()) {
+            csv = s;
+        } else {
+            csv = csv + delimiter + s;
+        }
+    }
+}
+</code></pre>
+<ul>
+<li>移譲メソッドのあるクラス</li>
+</ul>
+<pre><code>レコード：PersonalInfo
+  │
+  ├─目的：個人情報を表すクラス
+  └─フィールド
+        ├─名前：String name
+        └─住所：String address
+
+  クラス：Employee
+  │
+  ├─目的：従業員を表すクラス
+  │
+  ├─フィールド
+  │    ├─社員番号：int number
+  │    └─個人情報：PersonalInfo info
+  │
+  └─自動生成
+        ├─コンストラクタ
+        ├─ゲッター
+        └─移譲メソッド←info
+</code></pre>
+
+
+<pre class="java"><code class="language-java">/** 個人情報を表すクラス */
+public record PersonalInfo(
+    String name,   // 名前
+    String address // 住所
+) {}
+
+// 従業員を表すクラス
+public class Employee {
+
+    private int number;        // 社員番号
+    private PersonalInfo info; // 個人情報
+
+    // 自動生成：コンストラクタ（全引数）
+    public Employee(int number, PersonalInfo info) {
+        this.number = number;
+        this.info = info;
+    }
+
+    // 自動生成：ゲッター
+    public int getNumber() {
+        return number;
+    }
+
+    public PersonalInfo getInfo() {
+        return info;
+    }
+
+    // 自動生成：移譲メソッド ← info
+    public String name() {
+        return info.name();
+    }
+
+    public String address() {
+        return info.address();
+    }
+}
+</code></pre>
+<ul>
+<li>イミュータブルなクラス</li>
+</ul>
+<pre><code>※ミュータブルなクラス
+クラス：PersonalInfo
+  │
+  ├─目的：個人情報を表すクラス
+  ├─フィールド
+  │    ├─名前：String name
+  │    └─住所：String address
+  └─自動生成
+        ├─コンストラクタ
+        └─ゲッター
+
+  ※完全にイミュータブルなクラス
+  クラス：final Employee
+  │
+  ├─目的：従業員を表すクラス
+  ├─フィールド
+  │    ├─社員番号：final int number
+  │    └─個人情報：final PersonalInfo info
+  │
+  ├─自動生成
+  │    └─ゲッター
+  │
+  ├─コンストラクタ ※コピーしたPersonalInfoをフィールドに代入する
+  │    ├─引数
+  │    │    ├─社員番号：int number
+  │    │    └─個人情報；PersonalInfo info
+  │    │
+  │    └─処理
+  │          ├─引数numberをフィールドnumberに代入する
+  │          └─引数infoのフィールドと同じフィールドを持つ
+  │                PersonalInfoインスタンスを作成して、フィールドinfoに代入する
+  │
+  └─メソッド：getInfo
+        ├─目的：フィールドinfoのコピーを返す
+        ├─引数：なし
+        ├─戻り値：PersonalInfoインスタンス
+        └─処理
+              └─フィールドinfoと同じフィールドを持つ
+                    PersonalInfoインスタンスを作成して返す
+</code></pre>
+
+<pre class="java"><code class="language-java">// 個人情報を表すクラス
+public class PersonalInfo {
+    private String name;    // 名前
+    private String address; // 住所
+
+    // 自動生成：コンストラクタ（全引数）
+    public PersonalInfo(String name, String address) {
+        this.name = name;
+        this.address = address;
+    }
+
+    // 自動生成：ゲッター
+    public String getName() {
+        return name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+}
+
+
+// 従業員を表すクラス
+public final class Employee {
+    private final int number;        // 社員番号
+    private final PersonalInfo info; // 個人情報
+
+    // 自動生成：ゲッター (getNumber)
+    public int getNumber() {
+        return number;
+    }
+
+    // コピーしたPersonalInfoをフィールドに代入する
+    public Employee(int number, PersonalInfo info) {
+        this.number = number;
+        this.info = new PersonalInfo(info.getName(), info.getAddress());
+    }
+
+    /**
+     * フィールドinfoのコピーを返す
+     * @return PersonalInfoインスタンス
+     */
+    public PersonalInfo getInfo() {
+        return new PersonalInfo(info.getName(), info.getAddress());
+    }
+}
+</code></pre>
+<h3>4.5.クラス継承</h3>
+<ul>
+<li>メソッドを追加したサブクラス</li>
+</ul>
+<pre><code>クラス：StudentMember ─⊳ Member
+│
+├─目的：学生会員を表すクラス
+├─フィールド：なし
+├─自動生成
+│  ├─コンストラクタ
+│  ├─ゲッター
+│  └─ toString
+│
+│  ※オーバーライド
+└─インスタンスメソッド：membership_fee
+      │
+      ├─目的：会費額を返す
+      ├─引数：なし
+      ├─戻り値：int 、会費の額
+      └─処理
+            └─ FEE×0.7 を整数に丸めて返す
+</code></pre>
+
+<pre class="java"><code class="language-java">// 学生会員を表すクラス
+public class StudentMember extends Member {
+
+    // 自動生成：コンストラクタ（全引数）
+    public StudentMember(int uid, String name) {
+        super(uid, name);
+    }
+
+    // 自動生成：toString
+    @Override
+    public String toString() {
+        return &quot;StudentMember[uid=&quot; + getUid() + &quot;, name=&quot; + getName() + &quot;]&quot;;
+    }
+
+    /**
+     * 会費額を返す
+     * @return 会費の額
+     */
+    @Override
+    public int membership_fee() {
+        return (int) Math.round(FEE * 0.7);
+    }
+}
+</code></pre>
+<ul>
+<li>フィールドを追加したサブクラス</li>
+</ul>
+<pre><code>クラス：SeniorMember ─⊳ Member
+│
+├─目的：シニア会員を表すクラス
+├─フィールド
+│    └─誕生日：LocalDate birthday
+│
+├─自動生成
+│    ├─コンストラクタ
+│    ├─ゲッター
+│    └─toString
+│
+└─インスタンスメソッド：age
+      │
+      ├─目的：年齢を返す
+      ├─引数：なし
+      ├─戻り値：int 、年齢
+      └─処理
+            ├─today ← 今日の日付
+            ├─period ← 誕生日(birthday)から今日(today )までの期間を計算する
+            └─periodから年の値を取り出して返す
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.time.LocalDate;
+import java.time.Period;
+// シニア会員を表すクラス
+public class SeniorMember extends Member {
+
+    private LocalDate birthday; // 誕生日
+
+    // 自動生成：コンストラクタ（全引数）
+    public SeniorMember(int uid, String name, LocalDate birthday) {
+        super(uid, name);
+        this.birthday = birthday;
+    }
+
+    // 自動生成：ゲッター
+    public LocalDate getBirthday() {
+        return birthday;
+    }
+
+    // 自動生成：toString
+    @Override
+    public String toString() {
+        return &quot;SeniorMember[uid=&quot; + getUid() + &quot;, name=&quot; + getName() + &quot;, birthday=&quot; + birthday + &quot;]&quot;;
+    }
+
+    /**
+     * 年齢を返す
+     * @return 年齢
+     */
+    public int age() {
+        var today = LocalDate.now();
+        var period = Period.between(birthday, today);
+        return period.getYears();
+    }
+}
+</code></pre>
+<h3>4.6. インタフェースの実装</h3>
+<pre><code>クラス：StudentMember ─⊳ Member ---⊳ Versionable
+│
+├─目的：学生会員を表すクラス
+├─フィールド：なし
+├─自動生成
+│  └─コンストラクタ
+│
+├─インスタンスメソッド：membership_fee
+│    │
+│    ├─目的：会費額を返す
+│    ├─引数：なし
+│    ├─戻り値：int 、会費の額
+│    └─処理
+│          └─ FEE×0.7 を整数に丸めて返す
+│
+│※インタフェースの抽象メソッドの実装
+├─インスタンスメソッド：version
+│  ├─戻り値：String  、バージョン番号
+│  └─処理
+│        └─ &quot;StudentMember 1.0.0&quot;を返す
+│
+│※インタフェースの抽象メソッドの実装
+└─インスタンスメソッド：versionEx
+    │
+    ├─引数：なし
+    ├─戻り値：String  、バージョン番号と説明
+    └─処理
+          └─&quot;StudentMember 1.0.0：学生を表すクラス&quot; を返す
+</code></pre>
+
+
+<pre class="java"><code class="language-java">// 学生会員を表すクラス
+public class StudentMember extends Member implements Versionable {
+
+    // 自動生成：コンストラクタ（全引数）
+    public StudentMember(int uid, String name) {
+        super(uid, name);
+    }
+
+    /**
+     * 会費額を返す
+     * @return 会費の額
+     */
+    @Override
+    public int membership_fee() {
+        return (int) Math.round(FEE * 0.7);
+    }
+
+    /**
+     * @return バージョン番号
+     */
+    @Override
+    public String version() {
+        return &quot;StudentMember 1.0.0&quot;;
+    }
+
+    /**
+     * @return バージョン番号と説明
+     */
+    @Override
+    public String versionEx() {
+        return &quot;StudentMember 1.0.0：学生を表すクラス&quot;;
+    }
+}
+</code></pre>
+<br><br><br><br>
+</body>
+</html>

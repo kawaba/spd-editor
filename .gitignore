@@ -1,0 +1,14 @@
+# ===== 公開リポジトリに含めないもの =====
+
+# 解説・資料・フォント一式（ローカル専用）
+# PlemolJP のフォント zip は 216MB あり GitHub の 100MB/ファイル上限を超えるため、
+# docs/ はフォルダごと除外する。
+docs/
+
+# Claude Code のローカル設定（環境依存・共有不要）
+.claude/settings.local.json
+
+# OS が作る不要ファイル
+Thumbs.db
+desktop.ini
+.DS_Store
