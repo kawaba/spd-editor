@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.13.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.13.1</span></h1>
   </div>
 </div>
 
@@ -128,6 +128,7 @@ const COLS = 90, ROWS = 500, CELLW = 18, CELLH = 22, FONT = 16, RNUMW = 34;
 const data = {};
 const key = (x, y) => x + "," + y;
 const isHalf = ch => !!ch && ch.charCodeAt(0) <= 0x7f;
+const isQuote = ch => ch === '"' || ch === "'";
 
 /* ↻（for/while ループ記号）・▽（stream 処理記号）も下方向アンカー
    ＝記号の直下から │ を伸ばしてブロックを作る */
@@ -275,7 +276,7 @@ function renderToolbox(){
     else if (id === "__delrow")  { b.textContent = "行-"; b.title = "行削除（現在行を削除して下をシフト）"; }
     else if (id === "__undo")  { b.textContent = "↩"; b.title = "元に戻す (Ctrl+Z)"; b.classList.add("histbtn"); }
     else if (id === "__redo")  { b.textContent = "↪"; b.title = "やり直す (Ctrl+Y)"; b.classList.add("histbtn"); }
-    else if (id === "__copy")  { b.textContent = "Export"; b.title = "SPDをクリップボードへエクスポート（コメント付き）。範囲選択中はその部分だけをExport。Shift+クリックでコメント記号なしでExport"; }
+    else if (id === "__copy")  { b.textContent = "Export"; b.title = "SPDをクリップボードへエクスポート（コメント付き・行頭や前後の余白は詰める）。範囲選択中はその部分だけをExport。Shift+クリックでコメント記号なし・余白もそのままExport"; }
     else if (id === "__paste") { b.textContent = "Import"; b.title = "クリップボードからSPDをインポート。Shift+クリックでカーソル位置に部分Import（既存は消さず矩形を上書き）"; }
     else if (id === "__clear") { b.textContent = "全消去"; b.title = "全消去（グリッド全体を空にする）"; }
     else if (id === "←")    { b.textContent = id; b.title = "代入"; }
@@ -986,8 +987,9 @@ function redo(){
 
 /* ===== テキスト生成（Export 用） =====
    rect（{x1,y1,x2,y2}）を渡すとその矩形だけを出力する（部分Export）。
-   省略時は data/autoSet 全体（x=0..maxX）。インデント判定は出力の左端（x0）を行頭とみなす。 */
-function buildText(rect){
+   省略時は data/autoSet 全体（x=0..maxX）。インデント判定は出力の左端（x0）を行頭とみなす。
+   raw=true（Shift+Export）では余白正規化（EI-10）を行わず、指定範囲をそのまま出力する。 */
+function buildText(rect, raw){
   let x0, y0, x1, y1;
   if (rect){
     x0 = rect.x1; y0 = rect.y1; x1 = rect.x2; y1 = rect.y2;
@@ -996,6 +998,26 @@ function buildText(rect){
     for (const k in data){ const [x,y] = k.split(",").map(Number); if (x>x1) x1=x; if (y>y1) y1=y; }
     for (const k in autoSet){ const [,y] = k.split(",").map(Number); if (y>y1) y1=y; }
   }
+  // 余白の正規化（EI-10）：出力範囲のうち内容のあるセルの最小 x／最小 y／最大 y まで詰める。
+  // 図を1列目以外・1行目以外から書き始めても、Export したテキストに余分な行頭インデントや
+  // 先頭・末尾の空行が付かないようにする（図の途中の空行は意味を持つのでそのまま残す）。
+  // raw（Shift+Export・EI-09）は別 SPD への転記・ブロック移動に使うため、矩形の形をそのまま保つ。
+  if (!raw){
+    let minX = x1 + 1, minY = y1 + 1, maxY = y0 - 1;
+    for (let y = y0; y <= y1; y++){
+      for (let x = x0; x <= x1; x++){
+        const v = data[key(x,y)] || (autoSet[key(x,y)] ? "│" : "");
+        if (v && !/^[\s　]+$/.test(v)){          // 空マス・全白マスは内容とみなさない
+          if (x < minX) minX = x;                // この行の最左（内側は走査不要）
+          if (y < minY) minY = y;
+          maxY = y;
+          break;
+        }
+      }
+    }
+    // 内容が1つも無ければ範囲はそのまま（全行空 → 空文字出力）
+    if (minX <= x1){ x0 = minX; y0 = minY; y1 = maxY; }
+  }
   const lines = [];
   for (let y = y0; y <= y1; y++){
     let line = "";
@@ -1003,6 +1025,7 @@ function buildText(rect){
     // この領域の空白（空マス・全角空白だけのマスを含む）は半角空白2個で埋め、
     // それ以外（内容内の空白）は全角空白で埋める。
     let inIndent = true;
+    let dqCount = 0, sqCount = 0;                 // 行内の " ' の出現回数（開始/終了の奇偶判定・EI-11）
     for (let x = x0; x <= x1; x++){
       const v = data[key(x,y)] || (autoSet[key(x,y)] ? "│" : "");
       const blank = !v || /^[\s　]+$/.test(v);   // 空マス or 空白だけのマス
@@ -1011,7 +1034,18 @@ function buildText(rect){
       } else if (blank){
         line += inIndent ? "  " : "　";            // インデント中は半角2個、内容領域は全角
       } else {
-        line += v;                                // 実内容
+        // 引用符パディングの寄せ直し（EI-11）：引用符1文字＋半角空白1個だけのマスは、
+        // 空白が必ず文字列の外側に来る向きで出力する（開始 → " 、終了 → " ）。
+        // 文字数は変えないので図の桁はずれない。
+        if (v.length === 2 && ((v[0] === " " && isQuote(v[1])) || (isQuote(v[0]) && v[1] === " "))){
+          const q = v[0] === " " ? v[1] : v[0];
+          const cnt = q === '"' ? dqCount : sqCount;
+          if (q === '"') dqCount++; else sqCount++;
+          line += (cnt % 2 === 0) ? " " + q : q + " ";   // 偶数=開始（空白は左）／奇数=終了（空白は右）
+        } else {
+          for (const c of v){ if (c === '"') dqCount++; else if (c === "'") sqCount++; }
+          line += v;                              // 実内容
+        }
         inIndent = false;                         // │ 以外の内容が出たらインデント終了
       }
     }
@@ -1022,10 +1056,11 @@ function buildText(rect){
 
 /* ===== Export（クリップボードへコピー） =====
    範囲選択があればその矩形だけを出力する（部分Export）。なければ全体。
-   plain=true（Shift+Export）ではコメント記号（"""・/*）を付けずに本文だけを出力する。 */
+   plain=true（Shift+Export）ではコメント記号（"""・/*）を付けずに本文だけを出力し、
+   あわせて余白正規化（EI-10）も行わない＝指定範囲をそのまま出力する（転記・ブロック移動用）。 */
 function doCopy(plain){
   const r = selRect();
-  const body = r ? buildText({ x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2 }) : buildText();
+  const body = r ? buildText({ x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2 }, plain) : buildText(null, plain);
   const wrapped = plain ? body
     : currentLang === "python" ? '"""\n' + body + '\n"""'
     : "/*\n" + body + "\n*/";
