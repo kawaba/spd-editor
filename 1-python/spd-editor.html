@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.13.1</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.13.2</span></h1>
   </div>
 </div>
 
@@ -129,6 +129,30 @@ const data = {};
 const key = (x, y) => x + "," + y;
 const isHalf = ch => !!ch && ch.charCodeAt(0) <= 0x7f;
 const isQuote = ch => ch === '"' || ch === "'";
+
+/* ===== タブ展開 =====
+   タブ(U+0009)は isHalf() が真になるため、そのままだと「普通の半角文字」として
+   隣の文字と 1 マスにペアリングされてしまう（cell は white-space:pre / overflow:hidden
+   なのでタブが幅を食い、相方の文字が欄外へ押し出されて見えなくなる）。
+   Eclipse など外部エディタから貼り付けたタブインデントを正しく扱うため、
+   取り込み口（Import・文字入力欄）でタブ幅 TABSIZE の半角空白へ展開しておく。
+   タブ位置は文字列（＝行）の先頭から数える（Eclipse と同じ数え方）。 */
+const TABSIZE = 4;
+function expandTabs(s){
+  if (s.indexOf("\t") < 0) return s;
+  let out = "", col = 0;
+  for (const ch of s){
+    if (ch === "\t"){
+      const n = TABSIZE - (col % TABSIZE);
+      out += " ".repeat(n); col += n;
+    } else if (ch === "\n"){
+      out += ch; col = 0;
+    } else {
+      out += ch; col++;
+    }
+  }
+  return out;
+}
 
 /* ↻（for/while ループ記号）・▽（stream 処理記号）も下方向アンカー
    ＝記号の直下から │ を伸ばしてブロックを作る */
@@ -594,7 +618,7 @@ function writeChar(ch){
 }
 function flush(text){
   if (!text) return;
-  const chars = [...text];
+  const chars = [...expandTabs(text)];
   let dqCount = 0, sqCount = 0;
   for (let i = 0; i < chars.length; i++){
     const ch = chars[i];
@@ -921,7 +945,7 @@ function applyTextRunEdit(newText, { startX, endX, y }){
   setCaret(startX, y, 0);
   anchorX = startX;
   if (newText){
-    const chars = [...newText];
+    const chars = [...expandTabs(newText)];
     let dqCount = 0, sqCount = 0;
     for (let i = 0; i < chars.length; i++){
       if (!caret || caret.y !== y || caret.x >= COLS) break;
@@ -1085,7 +1109,7 @@ function parseSPDText(text){
   let width = 0;
   const height = Math.min(lines.length, ROWS);
   for (let y = 0; y < lines.length && y < ROWS; y++){
-    const line = lines[y];
+    const line = expandTabs(lines[y]);   // タブインデントを半角空白へ（外部エディタからの貼り付け対策）
     let x = 0, i = 0;
     let dqCount = 0, sqCount = 0;  // 行ごとに " ' の出現回数をカウント
     let inIndent = true;          // インデント領域判定（│ と半角空白で構成。半角空白2個＝空マス）
