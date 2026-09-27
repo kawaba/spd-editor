@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.13.2</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.14.0</span></h1>
   </div>
 </div>
 
@@ -1239,6 +1239,7 @@ async function doSave(){
       lastFileHandle = handle;
       currentFileName = handle.name;
       updateFileName();
+      markSaved();
       return;
     } catch(err){
       if (err && err.name === "AbortError") return;      // ユーザーがキャンセルした
@@ -1251,6 +1252,7 @@ async function doSave(){
   a.download = currentFileName || "spd.json";
   a.click();
   URL.revokeObjectURL(a.href);
+  markSaved();               // ダウンロード方式では保存先での成否が分からないので、保存済みとみなす
 }
 
 /* 読み込んだ JSON テキストを反映する。成功したら true。 */
@@ -1283,6 +1285,7 @@ async function doLoad(){
         lastFileHandle = handle;                         // このファイルのフォルダを記憶
         currentFileName = file.name;
         updateFileName();
+        markSaved();
       }
       return;
     } catch(err){
@@ -1303,11 +1306,84 @@ async function doLoad(){
       if (applyLoadedJSON(ev.target.result)){
         currentFileName = file.name;                     // フォルダは記憶できない（ブラウザ制約）
         updateFileName();
+        markSaved();
       }
     };
     reader.readAsText(file, "utf-8");
   };
   input.click();
+}
+
+/* ===== 自動保存・離脱確認（v1.14.0） =====
+   編集内容をブラウザの localStorage へ自動保存し、次回起動時に復元できるようにする。
+   AUTOSAVE_INTERVAL ごとに内容を比べ、変わっていたときだけ書き込む。
+   file:// では4つの spd-editor.html が同じ保存領域を共有するため、キーにパスを含めて分ける。
+   あわせて、保存していない変更があるときはページを離れる前にブラウザの確認を出す。 */
+const AUTOSAVE_KEY = "spd-autosave:" + location.pathname;
+const AUTOSAVE_INTERVAL = 2000;       // ミリ秒
+let savedState = "";                  // 最後に保存した／開いた時点の内容（離脱確認の基準）
+let autosavedState = "";              // 最後に自動保存した時点の内容
+let ownsAutosave = false;             // このページが自動保存を書いたか（書く前は他人の保存を消さない）
+
+function editState(){
+  return JSON.stringify({ lang: currentLang, data: data });
+}
+function isDataEmpty(){
+  for (const k in data) return false;
+  return true;
+}
+function isDirty(){
+  return editState() !== savedState;
+}
+/* 保存・開くが成功したときに呼ぶ。以後はこの内容を基準に未保存かどうかを判定する。 */
+function markSaved(){
+  savedState = editState();
+  autosaveNow(true);
+}
+/* 内容が変わっていれば localStorage へ書き込む。force なら変わっていなくても書く。
+   空になったら（全消去など）自動保存を消す。ただし自分で書いた自動保存に限る。 */
+function autosaveNow(force){
+  const state = editState();
+  if (!force && state === autosavedState) return;
+  try {
+    if (isDataEmpty()){
+      if (ownsAutosave) localStorage.removeItem(AUTOSAVE_KEY);
+    } else {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+        lang: currentLang, data: data, fileName: currentFileName,
+        dirty: state !== savedState, savedAt: Date.now() }));
+      ownsAutosave = true;
+    }
+    autosavedState = state;
+  } catch(err){}                      // プライベートウィンドウ等で使えない場合は何もしない
+}
+/* 起動時：未保存の変更を含む自動保存が残っていれば、復元するか確認する。
+   キャンセルしても自動保存は残し、次に編集するまでは上書きしない。 */
+function restoreAutosave(){
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(AUTOSAVE_KEY)); } catch(err){}
+  if (!saved || !saved.dirty || !saved.data) return;
+  const when = new Date(saved.savedAt).toLocaleString("ja-JP");
+  const name = saved.fileName ? "［" + saved.fileName + "］" : "";
+  if (!confirm("保存していない前回の作業内容" + name + "が残っています（" + when + " 自動保存）。\n"
+             + "復元しますか？\n\n"
+             + "キャンセルすると空の状態で始めます（前回の内容は、編集を始めるまでは残ります）。")) return;
+  if (!applyLoadedJSON(JSON.stringify(saved))) return;
+  currentFileName = saved.fileName || "";
+  updateFileName();
+  infoEl.textContent = "前回の作業内容を復元しました（まだファイルには保存されていません）";
+}
+function startAutosave(){
+  savedState = autosavedState = editState();
+  restoreAutosave();
+  setInterval(autosaveNow, AUTOSAVE_INTERVAL);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") autosaveNow();
+  });
+  window.addEventListener("beforeunload", e => {
+    autosaveNow();
+    if (isDirty()){ e.preventDefault(); e.returnValue = ""; }
+  });
 }
 
 /* ===== マウス操作 ===== */
@@ -1539,6 +1615,7 @@ if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
 }
 renderToolbox();
 updateInfo();
+startAutosave();
 </script>
 </body>
 </html>
