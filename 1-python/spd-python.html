@@ -1,264 +1,1017 @@
-﻿
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<title>SPD for Python</title>
 <style>
+/* ---- フォント指定 ----
+   本文＝BIZ UDPゴシック（プロポーショナル）／見出し＝游ゴシック体（太字）／
+   SPD・コード＝BIZ UDゴシック（等幅）
+   フォント名は環境ごとに登録名が異なるため、日本語名・英語名を併記する。 */
+body, table, th, td, blockquote {
+   font-family: "BIZ UDPゴシック", "BIZ UDPGothic", "Meiryo", "メイリオ",
+                "Yu Gothic UI", "Hiragino Sans", sans-serif;
+}
+
+/* SPD・コードは等幅のBIZ UDゴシック（Pなし＝等幅。半角＝全角の1/2幅で罫線が揃う） */
+pre, code {
+   font-family: "BIZ UDゴシック", "BIZ UDGothic",
+                "MS ゴシック", "MS Gothic", monospace;
+}
+
+/* 見出しは游ゴシック体の太字 */
+h1, h2, h3, h4, h5, h6 {
+   font-family: "游ゴシック体", "YuGothic", "游ゴシック Medium", "Yu Gothic Medium",
+                "游ゴシック", "Yu Gothic", sans-serif;
+   font-weight: bold;
+}
+
 body {
    color: black;
-   font-size: 12pt;
-   line-height: 1.3em;
-   margin-left: 50pt;
+   font-size: 14pt;
+   line-height: 1.5em;
+   margin-left: 60pt;
 }
-h3 {
-   color: black;
-   font-size: 24pt;
-   line-height: 1.3em;
 
+/* ---- 見出し ---- */
+h1 { font-size: 20pt; border-bottom: 2px solid #555; padding-bottom: 4pt; margin-top: 24pt; }
+h2 { font-size: 17pt; border-bottom: 1px solid #ddd; padding-bottom: 3pt; margin-top: 24pt; }
+h3 { font-size: 15pt; margin-top: 18pt; }
+h4 { font-size: 14pt; margin-top: 14pt; }
+h5, h6 { font-size: 13pt; margin-top: 12pt; }
+
+/* ---- 本文・リスト ---- */
+p  { margin: 6pt 0; }
+ul, ol { margin: 6pt 0; padding-left: 22pt; }
+li { margin: 2pt 0; }
+
+/* ---- コードブロック（SPD・コード共通） ---- */
+pre {
+   font-size: 12pt;
+   line-height: 1.4em;
+   white-space: pre;
+   overflow-x: auto;
+   background-color: #fafafa;
+   border: 1px solid #e8e8e8;
+   border-left: 4px solid #cbd8cb;   /* SPD・その他 */
+   padding: 8pt 10pt;
+   margin: 8pt 0;
+   tab-size: 4;
+   -moz-tab-size: 4;
 }
+pre code {
+   font-size: inherit;
+   background: none;
+   border: none;
+   padding: 0;
+   white-space: pre;
+}
+.small {
+    font-size: 12px;
+    line-height: 1.2;
+}
+.med {
+    font-size: 16px;
+    line-height: 1.4;
+}
+/* プログラムコードは左罫の色を変えて区別する */
+pre.java, pre.python { border-left-color: #b9cbe2; background-color: #f8fafd; }
+
+/* ---- インラインコード ---- */
+code {
+   font-size: 95%;
+   background-color: #f2f2f2;
+   border-radius: 3px;
+   padding: 0 3px;
+}
+
+/* ---- 表 ---- */
+table {
+   border-collapse: collapse;
+   font-size: 12pt;
+   line-height: 1.4em;
+   margin: 8pt 0;
+}
+th, td {
+   border: 1px solid #d5d5d5;
+   padding: 4pt 8pt;
+   text-align: left;
+   vertical-align: top;
+}
+th { background-color: #f2f4f6; }
+
+/* ---- 引用・区切り線 ---- */
+blockquote {
+   margin: 8pt 0 8pt 0;
+   padding: 4pt 12pt;
+   border-left: 4px solid #ddd;
+   background-color: #fcfcfa;
+   color: #333;
+}
+hr { border: none; border-top: 1px solid #bbb; margin: 20pt 0; }
+
+/* ---- チェックリスト ---- */
+ul.checklist { list-style: none; padding-left: 4pt; }
+ul.checklist li { text-indent: -1.4em; padding-left: 1.4em; }
+
+/* ---- 目次 ---- */
+nav#toc {
+   background-color: #fafbfc;
+   border: 1px solid #e0e0e0;
+   border-radius: 6px;
+   padding: 12pt 20pt 16pt 20pt;
+   margin: 12pt 0 24pt 0;
+   max-width: 640pt;
+}
+nav#toc h2 {
+   font-size: 15pt;
+   border-bottom: none;
+   margin-top: 0;
+   margin-bottom: 6pt;
+   padding-bottom: 0;
+}
+ul.toc-list {
+   list-style: none;
+   margin: 0;
+   padding-left: 0;
+   column-count: 2;
+   column-gap: 24pt;
+   line-height: 1.25;
+}
+ul.toc-list li { margin: 0.5pt 0; break-inside: avoid; }
+ul.toc-list li a {
+   text-decoration: none;
+   color: #234;
+}
+ul.toc-list li a:hover { text-decoration: underline; }
+ul.toc-list li.toc-h2 { font-weight: bold; font-size: 12.5pt; margin-top: 8pt; }
+ul.toc-list li.toc-h3 { font-size: 11.5pt; padding-left: 16pt; }
+ul.toc-list li.toc-h4 { font-size: 11pt; padding-left: 32pt; }
+ul.toc-list li.toc-li { font-size: 10.5pt; padding-left: 48pt; color: #555; }
+ul.toc-list li.toc-li a { color: #555; }
+
+/* ---- 見出し文字列からページトップへ戻るリンク ---- */
+a.totop {
+   color: inherit;
+   text-decoration: none;
+}
+a.totop:hover { text-decoration: underline; }
+
 </style>
 </head>
-
 <body>
-<h3>
-SPDパターン for Python
-</h3>
-<p>本書で使用したPython用のSPDを作成例として掲載します。<br>
-ほとんどのパターンを網羅しています。<br>
-例外処理、メソッド、クラスなど解説の中で使わなかったものもあるので、参考にしてください。</p>
-<hr>
-<br>
-<pre>
-複合代入演算子の働き（順次構造）
+<h1 id="pagetop">SPD for Python</h1>
+<p class="small">Python言語用のSPDのパターンをまとめた。<br>
+Gemini Gemを使ってSPDからコードを生成した。<br>
+AIモードはデフォルトでよいが、複雑なSPDでは上位のモードを使うこと。</p>
+<nav id="toc">
+<h2>目次</h2>
+<ul class="toc-list">
+<li class="toc-h2"><a href="#toc-1">1.コメント</a></li>
+<li class="toc-h2"><a href="#toc-2">2.基本構造</a></li>
+<li class="toc-h3"><a href="#toc-3">2.1 順次構造</a></li>
+<li class="toc-h3"><a href="#toc-4">2.2 分岐構造</a></li>
+<li class="toc-h4"><a href="#toc-5">2.2.1 if文</a></li>
+<li class="toc-h4"><a href="#toc-6">2.2.2 if-else文と書き方のTips</a></li>
+<li class="toc-li"><a href="#toc-7">単純な書き方</a></li>
+<li class="toc-li"><a href="#toc-8">タイトルを付ける（段階的詳細化）</a></li>
+<li class="toc-li"><a href="#toc-9">枝を折り曲げてコンパクトにする</a></li>
+<li class="toc-h4"><a href="#toc-10">2.2.3 if-elif文</a></li>
+<li class="toc-li"><a href="#toc-11">複数の場合分け</a></li>
+<li class="toc-li"><a href="#toc-12">数値の範囲での場合分け</a></li>
+<li class="toc-h3"><a href="#toc-13">2.3 反復構造</a></li>
+<li class="toc-h4"><a href="#toc-14">2.3.1 for文</a></li>
+<li class="toc-li"><a href="#toc-15">反復して表示する</a></li>
+<li class="toc-li"><a href="#toc-16">反復して計算する</a></li>
+<li class="toc-li"><a href="#toc-17">オブジェクトのリストを操作する</a></li>
+<li class="toc-h4"><a href="#toc-18">2.3.2 while文</a></li>
+<li class="toc-li"><a href="#toc-19">無限ループのパターン</a></li>
+<li class="toc-li"><a href="#toc-20">ウォルラス演算子の例</a></li>
+<li class="toc-h3"><a href="#toc-21">2.4 リストの操作</a></li>
+<li class="toc-h4"><a href="#toc-22">2.4.1 リスト内包表記</a></li>
+<li class="toc-li"><a href="#toc-23">変換操作</a></li>
+<li class="toc-li"><a href="#toc-24">条件付きで変換する</a></li>
+<li class="toc-li"><a href="#toc-25">抽出する（条件なし）</a></li>
+<li class="toc-li"><a href="#toc-26">2次元リストを扱うリスト内包表記</a></li>
+<li class="toc-h4"><a href="#toc-27">2.4.2 イテレータ関数</a></li>
+<li class="toc-li"><a href="#toc-28">インデックスを付けるenumerate関数</a></li>
+<li class="toc-li"><a href="#toc-29">複数のリストを合併するzip関数</a></li>
+<li class="toc-h3"><a href="#toc-30">2.5 辞書の操作</a></li>
+<li class="toc-h4"><a href="#toc-31">2.5.1 辞書の操作</a></li>
+<li class="toc-li"><a href="#toc-32">辞書のキーと値を表示する</a></li>
+<li class="toc-li"><a href="#toc-33">辞書のビュー（items()）</a></li>
+<li class="toc-li"><a href="#toc-34">辞書のリストから要素を検索する</a></li>
+<li class="toc-li"><a href="#toc-35">辞書の並べ替え</a></li>
+<li class="toc-h4"><a href="#toc-36">2.5.2 辞書内包表記</a></li>
+<li class="toc-li"><a href="#toc-37">辞書を変換して別形式の辞書を作る</a></li>
+<li class="toc-h3"><a href="#toc-38">2,6 関数</a></li>
+<li class="toc-h4"><a href="#toc-39">2.6.1 関数の定義</a></li>
+<li class="toc-li"><a href="#toc-40">定義方法と使用例</a></li>
+<li class="toc-h4"><a href="#toc-41">2.6.2 デフォルト引数</a></li>
+<li class="toc-h4"><a href="#toc-42">2.6.3 main関数</a></li>
+<li class="toc-li"><a href="#toc-43">main関数の定義例</a></li>
+<li class="toc-li"><a href="#toc-44">main関数の簡略定義</a></li>
+<li class="toc-h3"><a href="#toc-45">2.7 ファイルとディレクトリの操作</a></li>
+<li class="toc-li"><a href="#toc-46">パスの結合</a></li>
+<li class="toc-li"><a href="#toc-47">パスオブジェクトから再帰的にすべてのファイル名を取り出す</a></li>
+<li class="toc-h3"><a href="#toc-48">2.8 例外処理とファイル入出力</a></li>
+<li class="toc-h4"><a href="#toc-49">2.8.1 テキストファイルの入力</a></li>
+<li class="toc-li"><a href="#toc-50">一括読み込み</a></li>
+<li class="toc-li"><a href="#toc-51">行単位の読み込み</a></li>
+<li class="toc-h4"><a href="#toc-52">2.8.2 テキストファイルの出力</a></li>
+<li class="toc-li"><a href="#toc-53">一括出力</a></li>
+<li class="toc-li"><a href="#toc-54">リストの一括出力</a></li>
+<li class="toc-li"><a href="#toc-55">行単位の出力</a></li>
+<li class="toc-h4"><a href="#toc-56">2.8.3 例外を発生させる</a></li>
+<li class="toc-h2"><a href="#toc-57">3. クラスとオブジェクト</a></li>
+<li class="toc-h3"><a href="#toc-58">3.1 クラスの定義</a></li>
+<li class="toc-h3"><a href="#toc-59">3.2 継承</a></li>
+<li class="toc-h4"><a href="#toc-60">3.2.1 Memberクラスを継承するGeneralMemberクラス</a></li>
+<li class="toc-h4"><a href="#toc-61">3.2.2 コンストラクタのないサブラス</a></li>
+<li class="toc-h4"><a href="#toc-62">3.2.3 ミックスイン</a></li>
+<li class="toc-h4"><a href="#toc-63">3.2.4 データクラス</a></li>
+<li class="toc-li"><a href="#toc-64">データクラスの定義</a></li>
+<li class="toc-li"><a href="#toc-65">属性値の検査（バリデーション）</a></li>
+</ul>
+</nav>
+<h2 id="toc-1"><a href="#pagetop" class="totop">1.コメント</a></h2>
+<p class="med">・※から行末まではコメントであり、SPDの構造・処理としては解釈しない。<br>
+・コメントは生成コードの対応する位置に # コメントとして転記する。<br>
+・引用符(&quot;…&quot;)・鉤括弧(「…」)内の※はコメント開始とみなさない。<br>
+・※だけの行は構造解析上は存在しないものとして扱う(縦線の連結を切らない)。</p>
+<pre><code>税込み価格の計算(※による1行コメント)
+│
+├─変数priceにキーボードから整数の価格を入力する ※税抜き価格
+│  ※ここからは税込み価格の計算と表示
+└─priceに1.1を掛けて整数に丸め、"税込=〇〇"の形式で表示する
+</code></pre>
+<pre class="python"><code class="language-python">price = int(input("価格> "))  # 税抜き価格
+
+# ここからは税込み価格の計算と表示
+print(f"税込={round(price * 1.1)}")
+</code></pre>
+<h2 id="toc-2"><a href="#pagetop" class="totop">2.基本構造</a></h2>
+<h3 id="toc-3"><a href="#pagetop" class="totop">2.1 順次構造</a></h3>
+<pre><code>複合代入演算子の働き
 │
 ├─変数var に10を代入する
 ├─var を１増やす : var += 1
 └─var を表示する
-
-
-平方根を計算する（if文）
+</code></pre>
+<pre class="python"><code class="language-python">var = 10
+var += 1
+print(var)
+</code></pre>
+<h3 id="toc-4"><a href="#pagetop" class="totop">2.2 分岐構造</a></h3>
+<h4 id="toc-5"><a href="#pagetop" class="totop">2.2.1 if文</a></h4>
+<pre><code>平方根を計算する
 │
 ├─変数x にキーボードから整数を入力する
-├─◇─ xは負
-│        └─ x *= -1
+├─◇─xは負
+│        └─x *= -1
 ├─x の平方根を計算して、変数value に代入する
 └─value を表示する
+</code></pre>
+<pre class="python"><code class="language-python">x = int(input(&quot;整数&gt; &quot;))
 
+# 負の値は符号を反転してから平方根を計算する
+if x &lt; 0:
+    x *= -1
 
-サイコロゲーム（if-else 文）
+value = x ** 0.5
+print(value)
+</code></pre>
+<h4 id="toc-6"><a href="#pagetop" class="totop">2.2.2 if-else文と書き方のTips</a></h4>
+<ul>
+<li id="toc-7"><a href="#pagetop" class="totop">単純な書き方</a></li>
+</ul>
+<pre><code>サイコロゲーム
 │
 ├─tkxlib　からdice関数をインポートする
 ├─サイコロを振って（dice()）出目を変数numberに代入する
 │
-└─結果の表示─◇─number　は6 である
-                │    └─ "当たり" と表示する
-                └─else
-                      └─ "はずれ" と表示する
+└─◇─numberは6 である
+         │    └─&quot;当たり&quot; と表示する
+         └─else
+               └─&quot;はずれ&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from tkxlib import dice
 
+number = dice()
 
-身長の階級（if-elif 文）
-│
-├─キーボードから身長（cm）を変数heightに入力する（入力プロンプトは "身長>"）
-│
-└─身長の階級を求める─◇─180cm 以上
-                        │    └─ "A"と表示する
-                        ◇─170cm 以上
-                        │    └─ "B"と表示する
-                        ◇─160cm 以上
-                        │    └─ "C"と表示する
-                        └─else
-                              └─ "D"と表示する
-
-
-サイコロゲーム（SPD:　処理にタイトルを付ける）
+# 出目が6かどうかで当たり・はずれを決める
+if number == 6:
+    print(&quot;当たり&quot;)
+else:
+    print(&quot;はずれ&quot;)
+</code></pre>
+<ul>
+<li id="toc-8"><a href="#pagetop" class="totop">タイトルを付ける（段階的詳細化）</a></li>
+</ul>
+<pre><code>サイコロゲーム
 │
 ├─tkxlibからdice関数をインポートする
 ├─サイコロを振って（dice()）出目を変数numberに代入する
 │
-└─結果を表示する─◇─numberは6 である
-                    │    └─ "当たり" と表示する
-                    └─else
-                          └─ "はずれ" と表示する
+└─結果の表示─◇─numberは6 である
+                │    └─&quot;当たり&quot; と表示する
+                └─else
+                      └─&quot;はずれ&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from tkxlib import dice
 
-サイコロゲーム（SPD:枝を折り曲げてコンパクトにする）
+number = dice()
+
+# 結果の表示
+if number == 6:
+    print(&quot;当たり&quot;)
+else:
+    print(&quot;はずれ&quot;)
+</code></pre>
+<ul>
+<li id="toc-9"><a href="#pagetop" class="totop">枝を折り曲げてコンパクトにする</a></li>
+</ul>
+<pre><code>サイコロゲーム
 │
 ├─tkxlibからdice関数をインポートする
 ├─サイコロを振って（dice()）出目を変数numberに代入する
 │
 └─結果を表示する
-      └─◇─numberは6 である
-          │    └─ "当たり" と表示する
+      └─◇─numberは6である
+          │    └─&quot;当たり&quot; と表示する
           └─else
-                └─ "はずれ" と表示する
+                └─&quot;はずれ&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from tkxlib import dice
 
+number = dice()
 
+# 結果を表示する
+if number == 6:
+    print(&quot;当たり&quot;)
+else:
+    print(&quot;はずれ&quot;)
+</code></pre>
+<h4 id="toc-10"><a href="#pagetop" class="totop">2.2.3 if-elif文</a></h4>
+<ul>
+<li id="toc-11"><a href="#pagetop" class="totop">複数の場合分け</a></li>
+</ul>
+<pre><code>サイコロゲーム
+│
+├─キーボードから英単語を入力してwordに入れる
+└─◇─wordは&quot;cat&quot; である
+    │    └─&quot;ネコ&quot; と表示する
+    │
+    ◇─wordは&quot;dog&quot; である
+    │    └─&quot;イヌ&quot; と表示する
+    │
+    ◇─wordは&quot;rabbit&quot;である
+    │    └─&quot;ウサギ&quot; と表示する
+    │
+    └─else
+          └─&quot;辞書にありません&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">word = input(&quot;英単語&gt; &quot;)
 
-リストの要素を表示する（for 文、表示処理）
+# 入力された英単語に対応する日本語を表示する
+if word == &quot;cat&quot;:
+    print(&quot;ネコ&quot;)
+elif word == &quot;dog&quot;:
+    print(&quot;イヌ&quot;)
+elif word == &quot;rabbit&quot;:
+    print(&quot;ウサギ&quot;)
+else:
+    print(&quot;辞書にありません&quot;)
+</code></pre>
+<ul>
+<li id="toc-12"><a href="#pagetop" class="totop">数値の範囲での場合分け</a></li>
+</ul>
+<pre><code>身長の階級（if-elif 文）
+│
+├─キーボードから身長（cm）を変数heightに入力する（入力プロンプトは &quot;身長&gt;&quot;）
+│
+└─身長の階級を求める─◇─180cm 以上
+                        │    └─&quot;A&quot;と表示する
+                        ◇─170cm 以上
+                        │    └─&quot;B&quot;と表示する
+                        ◇─160cm 以上
+                        │    └─&quot;C&quot;と表示する
+                        └─else
+                              └─&quot;D&quot;と表示する
+</code></pre>
+<pre class="python"><code class="language-python">height = float(input(&quot;身長&gt;&quot;))
+
+# 身長の階級を求める
+if height &gt;= 180:
+    print(&quot;A&quot;)
+elif height &gt;= 170:
+    print(&quot;B&quot;)
+elif height &gt;= 160:
+    print(&quot;C&quot;)
+else:
+    print(&quot;D&quot;)
+</code></pre>
+<h3 id="toc-13"><a href="#pagetop" class="totop">2.3 反復構造</a></h3>
+<h4 id="toc-14"><a href="#pagetop" class="totop">2.3.1 for文</a></h4>
+<ul>
+<li id="toc-15"><a href="#pagetop" class="totop">反復して表示する</a></li>
+</ul>
+<pre><code>リストの要素を表示する
 │
 ├─データの準備─整数のリストを作成して、変数numbers に代入する
 │                    └─要素は(10, 20, 30)
 │
-└─表示処理─↻─for: n← numbers
+└─表示処理─↻─for:number←numbers
               │
-              └─n をコンソールに表示する
+              └─numberをコンソールに表示する
+</code></pre>
+<pre class="python"><code class="language-python">numbers = [10, 20, 30]
 
-
-
-リストの要素を集計する（for 文、集計処理）
+# リストの全要素を表示する
+for number in numbers:
+    print(number)
+</code></pre>
+<ul>
+<li id="toc-16"><a href="#pagetop" class="totop">反復して計算する</a></li>
+</ul>
+<pre><code>リストの要素を集計する
 │
 ├─データの準備─整数のリストを作成して、変数numbers に代入する
-│                    └─　要素は(10, 20, 30)
+│                    └─要素は(10, 20, 30)
 │
-├─合計の計算┬─total = 0 とする
-│            └─↻─for: n　← numbers
+├─合計の計算┬─total = 0とする
+│            └─↻─for:number←numbers
 │                │
-│                └─ nをtotal に加算する
+│                └─numberをtotal に加算する
 │
 ├─平均の計算─平均を計算して変数ave に代入する
-│                └─平均はtotal をnumbers の要素数で割り、小数点以下1 桁までに丸める
+│                └─平均はtotalをnumbersの要素数で割り、小数点以下1桁までに丸める
 │
-│
-└─結果の表示┬─合計を "合計＝〇〇" の書式でコンソールに表示する
-              └─平均を "平均＝〇〇" の書式でコンソールに表示する
+└─結果の表示┬─合計を&quot;合計＝〇〇&quot;の書式でコンソールに表示する
+              └─平均を&quot;平均＝〇〇&quot;の書式でコンソールに表示する
+</code></pre>
+<pre class="python"><code class="language-python">numbers = [10, 20, 30]
 
+# 合計の計算
+total = 0
+for number in numbers:
+    total += number
 
+# 平均の計算
+ave = round(total / len(numbers), 1)
 
-オブジェクトのリスト（for 文、オブジェクトのリスト）
+# 結果の表示
+print(f&quot;合計＝{total}&quot;)
+print(f&quot;平均＝{ave}&quot;)
+</code></pre>
+<ul>
+<li id="toc-17"><a href="#pagetop" class="totop">オブジェクトのリストを操作する</a></li>
+</ul>
+<pre><code>データクラス：Product
 │
-├─データの準備─ Productクラスのインスタンスを3 つ作って、リストproductsに代入する
-│                      └─ products ←[Product(MT890, 　ステンレスネジ, 280, False),
-│                                        Product(MT810,　タッピングネジ, 160, True ),
-│                                        Product(MT900,　スクリューネジ, 350, True )]
+├─目的：製品を表すデータクラス
+└─属性
+      ├─製品コード：code: str
+      ├─製品名：name: str
+      ├─価格：price: int
+      └─在庫：stock: bool
+
+オブジェクトのリスト
 │
-└─表示処理─↻─for: p　← products
+├─データの準備─Productクラスのインスタンスを3 つ作って、リストproductsに代入する
+│                      └─products ←[Product(MT890, ステンレスネジ ,280, False),
+│                                      Product(MT810, タッピングネジ ,160, True ),
+│                                      Product(MT900, スクリューネジ ,350, True )]
+│
+└─表示処理─↻─for:p←products
               │
-              └─ pの属性のうち商品名（p.name）と価格（p.price ）を
-                    コロンとタブで区切って表示する
+              └─商品名（p.name）と価格（p.price ）をコロンとタブで区切って表示する
+</code></pre>
+<pre class="python"><code class="language-python">from dataclasses import dataclass
 
 
-電卓プログラム（while 文、無限ループのパターン）
+@dataclass(frozen=True)
+class Product:
+    &quot;&quot;&quot;製品を表すデータクラス。&quot;&quot;&quot;
+
+    code: str
+    name: str
+    price: int
+    stock: bool
+
+
+products = [Product(&quot;MT890&quot;, &quot;ステンレスネジ&quot;, 280, False),
+            Product(&quot;MT810&quot;, &quot;タッピングネジ&quot;, 160, True),
+            Product(&quot;MT900&quot;, &quot;スクリューネジ&quot;, 350, True)]
+
+# 商品名と価格をコロンとタブで区切って表示する
+for p in products:
+    print(f&quot;{p.name}:\t{p.price}&quot;)
+</code></pre>
+<h4 id="toc-18"><a href="#pagetop" class="totop">2.3.2 while文</a></h4>
+<ul>
+<li id="toc-19"><a href="#pagetop" class="totop">無限ループのパターン</a></li>
+</ul>
+<pre><code>電卓プログラム
 │
-├─準備─ total = 0とする
-├─合計の計算─↻─while: True
+├─準備─total = 0とする
+├─合計の計算─↻─while:True  ※無限ループ
 │              │
 │              ├─変数numberにキーボードから整数を入力する
-│              ├─◇─ number は0 である
-│              │        └─ breakでループを脱出する
-│              ├─ number をコンソールに表示する
-│              └─ totalにnumberを加算する
+│              ├─◇─numberは0である
+│              │        └─breakでループを脱出する
+│              ├─numberをコンソールに表示する
+│              └─totalにnumberを加算する
 │
-└─結果の表示┬─終了時の区切りとして"------"を表示する
-              └─ "合計= 〇〇" の形式でtotal を表示する
+└─結果の表示┬─終了時の区切りとして&quot;------&quot;を表示する
+              └─&quot;合計= 〇〇&quot;の形式でtotal を表示する
+</code></pre>
+<pre class="python"><code class="language-python">total = 0
 
+# 合計の計算
+while True:  # 無限ループ
+    number = int(input(&quot;整数&gt; &quot;))
+    if number == 0:
+        break
+    print(number)
+    total += number
 
-電卓プログラム（while 文、入力して条件判定のパターン）
+# 結果の表示
+print(&quot;------&quot;)
+print(f&quot;合計= {total}&quot;)
+</code></pre>
+<ul>
+<li id="toc-20"><a href="#pagetop" class="totop">ウォルラス演算子の例</a></li>
+</ul>
+<pre><code>電卓プログラム（while 文、入力して条件判定のパターン）
 │
-├─変数の準備┬─ total = 0とする
+├─変数の準備┬─total = 0とする
 │            └─変数numberを用意する
 │
 ├─合計の計算
-│    └─↻─while: number にキーボードから整数を入力し、それが0 でない間繰り返す
+│    └─↻─while:numberにキーボードから整数を入力し、それが0 でない間繰り返す
 │        │
-│        ├─number　をコンソールに表示する
-│        └─total にnumberを加算する
+│        ├─numberをコンソールに表示する
+│        └─totalにnumberを加算する
 │
-└─結果の表示┬─終了時の区切りとして"------"を表示する
-              └─ "合計= 〇〇" の形式でtotal を表示する
+└─結果の表示┬─終了時の区切りとして&quot;------&quot;を表示する
+              └─&quot;合計= 〇〇&quot;の形式でtotalを表示する
+</code></pre>
+<pre class="python"><code class="language-python">total = 0
 
+# 入力した整数が0でない間、合計に加算する
+while (number := int(input(&quot;整数&gt; &quot;))) != 0:
+    print(number)
+    total += number
 
-リスト内包表記
+# 結果の表示
+print(&quot;------&quot;)
+print(f&quot;合計= {total}&quot;)
+</code></pre>
+<h3 id="toc-21"><a href="#pagetop" class="totop">2.4 リストの操作</a></h3>
+<h4 id="toc-22"><a href="#pagetop" class="totop">2.4.1 リスト内包表記</a></h4>
+<ul>
+<li id="toc-23"><a href="#pagetop" class="totop">変換操作</a></li>
+</ul>
+<pre><code>値の変換
+│
+├─変換元のリストを用意する─numbers←[2, 7, 8, 5, 6]
+│
+├─偶数の要素だけを取り出し、2倍して新しいリストにする
+│      │
+│      └─リスト内包表記で新しいリストnew_numbers を作成する
+│          ├─for: num←numbers
+│          └─変換: num * 2
+│
+└─new_numbersを表示する
+</code></pre>
+<pre class="python"><code class="language-python">numbers = [2, 7, 8, 5, 6]
+
+new_numbers = [num * 2 for num in numbers]
+
+print(new_numbers)
+</code></pre>
+<ul>
+<li id="toc-24"><a href="#pagetop" class="totop">条件付きで変換する</a></li>
+</ul>
+<pre><code>条件を付けて変換する
+│
+├─変換元のリストを用意する─numbers←[2, 7, 8, 5, 6]
+│
+├─偶数の要素だけを取り出し、2倍して新しいリストにする
+│      │
+│      └─リスト内包表記で新しいリストnew_numbers を作成する
+│          ├─for: num←numbers
+│          ├─変換: num * 2
+│          └─条件: num % 2 == 0
+│
+└─new_numbersを表示する
+</code></pre>
+<pre class="python"><code class="language-python">numbers = [2, 7, 8, 5, 6]
+
+# 偶数の要素だけを取り出し、2倍して新しいリストにする
+new_numbers = [num * 2 for num in numbers if num % 2 == 0]
+
+print(new_numbers)
+</code></pre>
+<ul>
+<li id="toc-25"><a href="#pagetop" class="totop">抽出する（条件なし）</a></li>
+</ul>
+<pre><code>偶数だけのリストにする
 │
 ├─変換元のリストを用意する─numbers ←[2, 7, 8, 5, 6]
 │
 ├─偶数の要素だけを取り出し、2 倍して新しいリストにする
 │      │
 │      └─リスト内包表記で新しいリストnew_numbers を作成する
-│          ├─for: num　← numbers
-│          ├─変換: num * 2
+│          ├─for: num← numbers
 │          └─条件: num % 2 == 0
 │
-└─ new_numbersを表示する
+└─new_numbersを表示する
+</code></pre>
+<pre class="python"><code class="language-python">numbers = [2, 7, 8, 5, 6]
 
+# 偶数の要素だけを取り出して新しいリストにする
+new_numbers = [num for num in numbers if num % 2 == 0]
 
-リストとインデックス（enumerate 関数）
+print(new_numbers)
+</code></pre>
+<ul>
+<li id="toc-26"><a href="#pagetop" class="totop">2次元リストを扱うリスト内包表記</a></li>
+</ul>
+<pre><code>体重と身長のリストをBMIのリストに変換する
 │
-├─リストを用意する─ animals　←["dog", "cat", "rabbit"]
+├─変数dataに[[65.5, 172.8],[50.8, 158.2],[75.7, 178.3]]を代入する
+├─リスト内包表記で新しいリストbmiを作成する
+│    ├─for: weight, height ← data  ※アンパック
+│    └─変換: weight / (height / 100) ** 2
+└─bmiを表示する
+</code></pre>
+<pre class="python"><code class="language-python">data = [[65.5, 172.8], [50.8, 158.2], [75.7, 178.3]]
+
+bmi = [weight / (height / 100) ** 2 for weight, height in data]  # アンパック
+
+print(bmi)
+</code></pre>
+<h4 id="toc-27"><a href="#pagetop" class="totop">2.4.2 イテレータ関数</a></h4>
+<ul>
+<li id="toc-28"><a href="#pagetop" class="totop">インデックスを付けるenumerate関数</a></li>
+</ul>
+<pre><code>項番付きで表示する
+│
+├─リストを用意する─animals←[&quot;dog&quot;, &quot;cat&quot;, &quot;rabbit&quot;]
 │
 └─要素をインデックス付きで表示する
                   │
-                  └─↻─for: i, animal　← enumerate(animals)
-                      └─ iとanimalを並べて表示する
+                  └─↻─for: i, animal← enumerate(animals)
+                      └─iとanimalを並べて表示する
+</code></pre>
+<pre class="python"><code class="language-python">animals = [&quot;dog&quot;, &quot;cat&quot;, &quot;rabbit&quot;]
 
-
-2 つのリストの要素をまとめて表示する（zip 関数）
+# 要素をインデックス付きで表示する
+for i, animal in enumerate(animals):
+    print(i, animal)
+</code></pre>
+<ul>
+<li id="toc-29"><a href="#pagetop" class="totop">複数のリストを合併するzip関数</a></li>
+</ul>
+<pre><code>名前のリストと身長のリストを並べて表示する
 │
 ├─名前のリストと身長のリストを用意する
-│    ├─ names　← [ "田中", "佐藤", "山田"]
-│    └─ heights　← [175.3, 163.5, 182.1]
+│    ├─names←[ &quot;田中&quot;, &quot;佐藤&quot;, &quot;山田&quot;]
+│    └─heights←[175.3, 163.5, 182.1]
 │
 └─名前と身長を並べて表示する─↻─ for: name, height← zip(names, heights)
-                                    └─ name とheightを並べて表示する
+                                     └─nameとheightを並べて表示する
+</code></pre>
+<pre class="python"><code class="language-python">names = [&quot;田中&quot;, &quot;佐藤&quot;, &quot;山田&quot;]
+heights = [175.3, 163.5, 182.1]
 
-
-辞書のすべてのキーと値を表示する
+# 名前と身長を並べて表示する
+for name, height in zip(names, heights):
+    print(name, height)
+</code></pre>
+<h3 id="toc-30"><a href="#pagetop" class="totop">2.5 辞書の操作</a></h3>
+<h4 id="toc-31"><a href="#pagetop" class="totop">2.5.1 辞書の操作</a></h4>
+<ul>
+<li id="toc-32"><a href="#pagetop" class="totop">辞書のキーと値を表示する</a></li>
+</ul>
+<pre><code>辞書のすべてのキーと値を表示する
   │
-  ├─　変数score に成績を表す辞書を代入する
-  │      └─ score　← {"id": 1201, "English": 90, "Math": 85, "Language": 92}
+  ├─変数score に成績を表す辞書を代入する
+  │      └─score←{&quot;id&quot;: 1201, &quot;English&quot;: 90, &quot;Math&quot;: 85, &quot;Language&quot;: 92}
   │
-  └─ scoreのすべてのキーと値を表示する
-        └─↻─for: key　← score
+  └─scoreのすべてのキーと値を表示する
+        └─↻─for: key← score
             │
-            └─ print: キーと値をコロン（: ）で区切って表示する
+            └─キーと値をコロン（:）で区切って表示する
+</code></pre>
+<pre class="python"><code class="language-python">score = {&quot;id&quot;: 1201, &quot;English&quot;: 90, &quot;Math&quot;: 85, &quot;Language&quot;: 92}
 
-
-
-辞書のキーと値を順に表示する（辞書のビュー）
+# scoreのすべてのキーと値をコロンで区切って表示する
+for key in score:
+    print(f&quot;{key}:{score[key]}&quot;)
+</code></pre>
+<ul>
+<li id="toc-33"><a href="#pagetop" class="totop">辞書のビュー（items()）</a></li>
+</ul>
+<pre><code>辞書のキーと値を表示する
 │
 ├─変数score に成績を表す辞書を代入する
-│      └─score ← {"id": 1201, "English": 90, "Math": 85, "Language": 92}
+│      └─score←{&quot;id&quot;: 1201, &quot;English&quot;: 90, &quot;Math&quot;: 85, &quot;Language&quot;: 92}
 │
-└─score のすべてのキーと値を表示する
+└─scoreのすべてのキーと値を表示する
       └─↻─for: key, value ← score.items()
           │
-          └─キーと値をコロン（: ）で区切って表示する
+          └─キーと値をコロン（:）で区切って表示する
+</code></pre>
+<pre class="python"><code class="language-python">score = {&quot;id&quot;: 1201, &quot;English&quot;: 90, &quot;Math&quot;: 85, &quot;Language&quot;: 92}
 
-
-
-検索用の辞書を作成する（辞書内包表記）
+# scoreのすべてのキーと値をコロンで区切って表示する
+for key, value in score.items():
+    print(f&quot;{key}:{value}&quot;)
+</code></pre>
+<ul>
+<li id="toc-34"><a href="#pagetop" class="totop">辞書のリストから要素を検索する</a></li>
+</ul>
+<pre><code>ユーザーのリストから特定のユーザーを検索する
 │
 ├─ユーザーのリストを作成する:
-│      └─users ← [
-│              {"id": 103, "name": "tanaka", "role": "admin"},
-│              {"id": 105, "name": "sasaki", "role": "user"},
-│              {"id": 100, "name": "maeda", "role": "user"},  ]
+│  └─users = [
+│              {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+│              {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+│              {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;}, ]
+│
+└─sasakiを検索して表示する:
+      └─↻─for: user ← users
+          │
+          └─◇─userの名前（name）はsasakiである
+                    ├─printでuserのid, name, roleを並べて表示する
+                    └─breakでループを抜ける
+</code></pre>
+<pre class="python"><code class="language-python">users = [
+    {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+    {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+    {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;},
+]
+
+# sasakiを検索して表示する
+for user in users:
+    if user[&quot;name&quot;] == &quot;sasaki&quot;:
+        print(user[&quot;id&quot;], user[&quot;name&quot;], user[&quot;role&quot;])
+        break
+</code></pre>
+<ul>
+<li id="toc-35"><a href="#pagetop" class="totop">辞書の並べ替え</a></li>
+</ul>
+<pre><code>辞書のリストのソート
+│
+├─ユーザー辞書のリストを作成する
+│      └─users = [
+│            {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+│            {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+│            {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;}, ]
+│
+├─ユーザー辞書のリストusersを、&quot;id&quot;の降順にソートする
+│
+└─リストの全要素を表示する─↻─for: user←users
+                              │
+                              └─userをprintで表示する
+</code></pre>
+<pre class="python"><code class="language-python">users = [
+    {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+    {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+    {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;},
+]
+
+users.sort(key=lambda user: user[&quot;id&quot;], reverse=True)
+
+# リストの全要素を表示する
+for user in users:
+    print(user)
+</code></pre>
+<h4 id="toc-36"><a href="#pagetop" class="totop">2.5.2 辞書内包表記</a></h4>
+<ul>
+<li id="toc-37"><a href="#pagetop" class="totop">辞書を変換して別形式の辞書を作る</a></li>
+</ul>
+<pre><code>検索用の辞書を作成する
+│
+├─ユーザーのリストを作成する:
+│      └─users←[
+│              {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+│              {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+│              {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;}, ]
 │
 ├─検索用の辞書を作る
 │      └─辞書内包表記で、users からuser_mapを作る
 │            ├─for: user ← users
 │            └─変換
-│                  ├─キー: user["name"]
-│                  └─値: {"id":user["id"], "role": user["role"]}
+│                  ├─キー: user[&quot;name&quot;]
+│                  └─値: {&quot;id&quot;: user[&quot;id&quot;], &quot;role&quot;: user[&quot;role&quot;]}
 │
-└─ user_map からsasakiを検索して表示する
-    ├─user　← user_map["sasaki"]
-    └─print で"sasaki"とuser["id"]とuser["role"]を並べて表示する
+└─user_mapからsasakiを検索して表示する
+    ├─user←user_map[&quot;sasaki&quot;]
+    └─printで&quot;sasaki&quot;とuser[&quot;id&quot;]とuser[&quot;role&quot;]を並べて表示する
+</code></pre>
+<pre class="python"><code class="language-python">users = [
+    {&quot;id&quot;: 103, &quot;name&quot;: &quot;tanaka&quot;, &quot;role&quot;: &quot;admin&quot;},
+    {&quot;id&quot;: 105, &quot;name&quot;: &quot;sasaki&quot;, &quot;role&quot;: &quot;user&quot;},
+    {&quot;id&quot;: 100, &quot;name&quot;: &quot;maeda&quot;, &quot;role&quot;: &quot;user&quot;},
+]
+
+# 名前をキーにした検索用の辞書を作る
+user_map = {
+    user[&quot;name&quot;]: {&quot;id&quot;: user[&quot;id&quot;], &quot;role&quot;: user[&quot;role&quot;]}
+    for user in users
+}
+
+user = user_map[&quot;sasaki&quot;]
+print(&quot;sasaki&quot;, user[&quot;id&quot;], user[&quot;role&quot;])
+</code></pre>
+<h3 id="toc-38"><a href="#pagetop" class="totop">2,6 関数</a></h3>
+<h4 id="toc-39"><a href="#pagetop" class="totop">2.6.1 関数の定義</a></h4>
+<ul>
+<li id="toc-40"><a href="#pagetop" class="totop">定義方法と使用例</a></li>
+</ul>
+<pre><code>関数: score
+│
+├─目的：3 科目のテストの合計と平均を計算する
+├─引数
+│    ├─math：数学のテストの点数
+│    ├─science ：理科のテストの点数
+│    └─english ：英語のテストの点数
+│
+├─戻り値：合計と平均のタプル
+│
+└─処理
+    ├─合計を計算して変数total に代入する
+    ├─平均を計算して小数点以下1 桁までに丸めて、変数average に代入する
+    └─totalとaverageをタプルにして返す
+
+関数の使用例
+│
+├─score(80, 70, 60) を実行して、戻り値を変数total とaverage に代入する
+└─合計(total) と平均(average) を、&quot;合計= 〇〇、平均= 〇〇. 〇&quot; の形式で表示する
+</code></pre>
+<pre class="python"><code class="language-python">def score(math, science, english):
+    &quot;&quot;&quot;3科目のテストの合計と平均を計算します。&quot;&quot;&quot;
+    total = math + science + english
+    average = round(total / 3, 1)
+    return total, average
 
 
+total, average = score(80, 70, 60)
+print(f&quot;合計= {total}、平均= {average:.1f}&quot;)
+</code></pre>
+<h4 id="toc-41"><a href="#pagetop" class="totop">2.6.2 デフォルト引数</a></h4>
+<pre><code>関数: calc_price
+│
+├─目的：税込みの価格を計算する
+├─引数
+│    ├─price:　商品の税抜き価格
+│    └─tax_rate = 0.1: 税率    ※デフォルト引数
+├─戻り値：税込みの価格
+└─処理
+    └─税込みの価格を計算し、整数にして返す
+              └─return　int(price * (1 + tax_rate))
+
+関数の使用例
+│
+├─&quot;価格＝〇〇&quot;の形式でcalc_price(1000)の戻り値を表示する
+└─&quot;価格＝〇〇&quot;の形式でcalc_price(1000, 0.08)の戻り値を表示する
+</code></pre>
+<pre class="python"><code class="language-python">def calc_price(price, tax_rate=0.1):
+    &quot;&quot;&quot;税込みの価格を計算します。&quot;&quot;&quot;
+    return int(price * (1 + tax_rate))
 
 
-テキストファイルの一括読み込み（例外処理）
+print(f&quot;価格＝{calc_price(1000)}&quot;)
+print(f&quot;価格＝{calc_price(1000, 0.08)}&quot;)
+</code></pre>
+<h4 id="toc-42"><a href="#pagetop" class="totop">2.6.3 main関数</a></h4>
+<ul>
+<li id="toc-43"><a href="#pagetop" class="totop">main関数の定義例</a></li>
+</ul>
+<pre><code>関数: main
+  │
+  ├─目的：3 科目の点数から合計と平均を求めて表示する
+  ├─引数: なし
+  ├─戻り値: なし
+  │
+  └─処理
+        ├─数学・理科・英語の点数をキーボードから入力する
+        ├─score() を呼び出して、戻り値を変数total とaverage に代入する
+        └─合計(total) と平均(average) を、 &quot;合計= 〇〇、平均= 〇〇. 〇&quot; の形式で表示する
+</code></pre>
+<pre class="python"><code class="language-python">def main():
+    &quot;&quot;&quot;3科目の点数から合計と平均を求めて表示します。&quot;&quot;&quot;
+    math = int(input(&quot;数学&gt; &quot;))
+    science = int(input(&quot;理科&gt; &quot;))
+    english = int(input(&quot;英語&gt; &quot;))
+    total, average = score(math, science, english)
+    print(f&quot;合計= {total}、平均= {average:.1f}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+<ul>
+<li id="toc-44"><a href="#pagetop" class="totop">main関数の簡略定義</a></li>
+</ul>
+<pre><code>※main　関数の省略形（main　は引数も戻り値もないので、目的・引数・戻り値の枝は省略してよい）
+関数: main
+  │
+  └─処理
+        ├─数学・理科・英語の点数をキーボードから入力する
+        ├─score() を呼び出して、戻り値を変数total とaverage に代入する
+        └─合計(total) と平均(average) を、 &quot;合計= 〇〇、平均= 〇〇. 〇&quot; の形式で表示する
+</code></pre>
+<pre class="python"><code class="language-python">def main():
+    &quot;&quot;&quot;3科目の点数から合計と平均を求めて表示します。&quot;&quot;&quot;
+    math = int(input(&quot;数学&gt; &quot;))
+    science = int(input(&quot;理科&gt; &quot;))
+    english = int(input(&quot;英語&gt; &quot;))
+    total, average = score(math, science, english)
+    print(f&quot;合計= {total}、平均= {average:.1f}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre>
+<h3 id="toc-45"><a href="#pagetop" class="totop">2.7 ファイルとディレクトリの操作</a></h3>
+<ul>
+<li id="toc-46"><a href="#pagetop" class="totop">パスの結合</a></li>
+</ul>
+<pre><code> 2つのパスを結合する
+│
+├─ベースパスの作成──&quot;c:/python&quot; をパスオブジェクトにしてpathに入れる
+├─ファイル名を得る──キーボードから入力したファイル名をfname に入れる
+├─ベースパスとファイル名を結合してpathに入れる
+└─pathを表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
+
+# ベースパスの作成
+path = Path(&quot;c:/python&quot;)
+
+# ファイル名を得る
+fname = input(&quot;ファイル名&gt; &quot;)
+
+path = path / fname
+print(path.as_posix())
+</code></pre>
+<ul>
+<li id="toc-47"><a href="#pagetop" class="totop">パスオブジェクトから再帰的にすべてのファイル名を取り出す</a></li>
+</ul>
+<pre><code>指定したディレクトリから再帰的にすべてのファイル名を取り出して表示する
+│
+├─&quot;c:/python/workspace&quot; のパスをpathに入れる
+└─↻─for:p←pathの中の全てのパス
+    │
+    └─◇─pはファイルである
+                └─ファイル名を表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
+
+path = Path(&quot;c:/python/workspace&quot;)
+
+# 再帰的にすべてのパスをたどり、ファイルの名前だけを表示する
+for p in path.rglob(&quot;*&quot;):
+    if p.is_file():
+        print(p.name)
+</code></pre>
+<h3 id="toc-48"><a href="#pagetop" class="totop">2.8 例外処理とファイル入出力</a></h3>
+<h4 id="toc-49"><a href="#pagetop" class="totop">2.8.1 テキストファイルの入力</a></h4>
+<ul>
+<li id="toc-50"><a href="#pagetop" class="totop">一括読み込み</a></li>
+</ul>
+<pre><code>テキストファイルの一括読み込み（例外処理）
 │
 ├─入力ファイルのパスを用意する─path←fruit.txt のパス
 │
 └─ファイル入力処理─〇─try
                       │    ├─ファイルの全内容を一括読み出しして、変数dataに代入する
-                      │    │      └─ data ← path.read_text(encoding="utf-8")
+                      │    │      └─ data ← path.read_text(encoding=&quot;utf-8&quot;)
                       │    └─print でdataをコンソールに出力する
                       │
-                      〇─except:(OSError, UnicodeDecodeError)
-                            └─ "ファイル入力エラー" と表示する
+                      〇─except (OSError, UnicodeDecodeError) as e:
+                            └─ &quot;ファイル入力エラー&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
 
-行単位のファイル読み込み（例外処理）
+path = Path(&quot;fruit.txt&quot;)
+
+# ファイルの全内容を一括で読み出して表示する
+try:
+    data = path.read_text(encoding=&quot;utf-8&quot;)
+    print(data)
+except (OSError, UnicodeDecodeError) as error:
+    print(&quot;ファイル入力エラー&quot;)
+</code></pre>
+<ul>
+<li id="toc-51"><a href="#pagetop" class="totop">行単位の読み込み</a></li>
+</ul>
+<pre><code>行単位のファイル読み込み（例外処理）
 │
 ├─入力ファイルのパスを用意する─path←fruit.txt のパス
 │
@@ -268,33 +1021,62 @@ SPDパターン for Python
           │    └─↻─ for: line← f
           │            └─ 1行分のデータ（line）をコンソールに表示する
           │
-          〇─ except: (OSError, UnicodeDecodeError)
-                └─ "ファイル入力エラー" と表示する
+          〇─ except (OSError, UnicodeDecodeError) as e:
+                └─ &quot;ファイル入力エラー&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
 
+path = Path(&quot;fruit.txt&quot;)
 
-テキストファイルの一括出力（例外処理）
+# ファイルを1行ずつ読み出して表示する
+try:
+    with path.open(&quot;r&quot;, encoding=&quot;utf-8&quot;) as f:
+        for line in f:
+            print(line, end=&quot;&quot;)
+except (OSError, UnicodeDecodeError) as error:
+    print(&quot;ファイル入力エラー&quot;)
+</code></pre>
+<h4 id="toc-52"><a href="#pagetop" class="totop">2.8.2 テキストファイルの出力</a></h4>
+<ul>
+<li id="toc-53"><a href="#pagetop" class="totop">一括出力</a></li>
+</ul>
+<pre><code>テキストファイルの一括出力（例外処理）
 │
 ├─出力するテキストとパスを準備する┬─出力するテキストを作る
-│                                  │    └─ data ← "リンゴ\nバナナ\nさくらんぼ\n"
+│                                  │    └─ data ← &quot;リンゴ\nバナナ\nさくらんぼ\n&quot;
 │                                  └─path←fruit.txt のパス
 │
 └─ファイルへ一括出力処理─〇─try
                             │    └─テキストを一括出力する
-                            │            └─ path.write_text(data, encoding="utf-8")
+                            │            └─ path.write_text(data, encoding=&quot;utf-8&quot;)
                             │
-                            〇─except:(OSError, UnicodeDecodeError)
-                                  └─ "ファイル出力エラー" と表示する
+                            〇─except (OSError, UnicodeEncodeError) as e:
+                                  └─ &quot;ファイル出力エラー&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
 
-リストの一括出力（例外処理）
+data = &quot;リンゴ\nバナナ\nさくらんぼ\n&quot;
+path = Path(&quot;fruit.txt&quot;)
+
+# テキストを一括で出力する
+try:
+    path.write_text(data, encoding=&quot;utf-8&quot;)
+except (OSError, UnicodeEncodeError) as error:
+    print(&quot;ファイル出力エラー&quot;)
+</code></pre>
+<ul>
+<li id="toc-54"><a href="#pagetop" class="totop">リストの一括出力</a></li>
+</ul>
+<pre><code>リストの一括出力（例外処理）
 │
 ├─準備┬─出力するリストを用意する┬─出力するリストを作る
-│      │                          │    └─data← ["apple","banana","cherry"]
+│      │                          │    └─data← [&quot;apple&quot;,&quot;banana&quot;,&quot;cherry&quot;]
 │      │                          │
 │      │                          └─リストの各要素に改行（\n）を付加した新しいリストを作る
 │      │                                │
 │      │                                └─リスト内包表記で新しいリストnew_dataを作成する
 │      │                                        ├─for: item ← data
-│      │                                        └─変換: item + "\n"
+│      │                                        └─変換: item + &quot;\n&quot;
 │      │
 │      └─パスの作成─path←fruit.txt のパス
 │
@@ -302,16 +1084,33 @@ SPDパターン for Python
                           │    │
                           │    └─リストの全要素を一括出力する─ f.writelines(new_data)
                           │
-                          〇─except:(OSError, UnicodeDecodeError)
+                          〇─except (OSError, UnicodeEncodeError) as e:
                                 │
-                                └─ "ファイル出力エラー" と表示する
+                                └─ &quot;ファイル出力エラー&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
 
+data = [&quot;apple&quot;, &quot;banana&quot;, &quot;cherry&quot;]
 
+# リストの各要素に改行を付加した新しいリストを作る
+new_data = [item + &quot;\n&quot; for item in data]
 
-行単位のファイル出力（例外処理）
+path = Path(&quot;fruit.txt&quot;)
+
+# リストの全要素を一括で出力する
+try:
+    with path.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
+        f.writelines(new_data)
+except (OSError, UnicodeEncodeError) as error:
+    print(&quot;ファイル出力エラー&quot;)
+</code></pre>
+<ul>
+<li id="toc-55"><a href="#pagetop" class="totop">行単位の出力</a></li>
+</ul>
+<pre><code>行単位のファイル出力（例外処理）
 │
 ├─準備┬─出力ファイルのパスを用意する─path←”data.txt”のパス
-│      └─出力する変数を用意する┬─text = "こんにちは"
+│      └─出力する変数を用意する┬─text = &quot;こんにちは&quot;
 │                                └─number = 123
 │
 └─行単位のファイル出力処理
@@ -321,170 +1120,344 @@ SPDパターン for Python
           │    ├─f.write でtextを出力する
           │    └─f.write でnumberを文字列に変換したstr(number) を出力する
           │
-          〇─ except: (OSError, UnicodeDecodeError)
-                └─ "ファイル出力エラー" と表示する
+          〇─ except (OSError, UnicodeEncodeError) as e:
+                └─ &quot;ファイル出力エラー&quot; と表示する
+</code></pre>
+<pre class="python"><code class="language-python">from pathlib import Path
 
+path = Path(&quot;data.txt&quot;)
+text = &quot;こんにちは&quot;
+number = 123
 
-
-<<< 関数の定義 >>>
-
-関数: score
+# textとnumberを行単位で出力する
+try:
+    with path.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
+        f.write(text)
+        f.write(str(number))
+except (OSError, UnicodeEncodeError) as error:
+    print(&quot;ファイル出力エラー&quot;)
+</code></pre>
+<h4 id="toc-56"><a href="#pagetop" class="totop">2.8.3 例外を発生させる</a></h4>
+<pre><code>関数：sqrt
   │
-  ├─目的：3 科目のテストの合計と平均を計算する
+  ├─目的：平方根を計算する
   ├─引数
-  │    ├─math　数学のテストの点数
-  │    ├─science ：理科のテストの点数
-  │    └─english ：英語のテストの点数
-  │
-  ├─戻り値─合計と平均のタプル
+  │    └─x ：平方根を求める値
+  ├─戻り値：x の平方根の値
   │
   └─処理
-      ├─合計を計算して変数total に代入する
-      ├─平均を計算して小数点以下1 桁までに丸めて、変数average に代入する
-      └─total とaverage をタプルにして返す
+        └─◇─xは負である
+            │    └─ValueError(&quot;負の平方根は計算できません&quot;)を発生させる
+            │
+            └─else
+                  └─x ** 0.5　の値を返す
 
-
-関数の使用例
+計算処理
   │
-  ├─score(80, 70, 60) を実行して、戻り値を変数total とaverage に代入する　❹
-  └─合計(total) と平均(average) を、 "合計= 〇〇、平均= 〇〇. 〇" の形式で表示する
+  ├─tkxlibからget_float 関数をインポートする
+  ├─キーボードからnumberに小数を入力する
+  └─〇─try:
+      │  ├─sqrt関数でnumberの平方根を計算して答えをresultに代入する
+      │  └─resultを小数点以下1桁に丸めて &quot;平方根＝〇〇. 〇&quot;の形式で表示する
+      │
+      〇─except ValueError as e:
+          └─&quot;エラー\n&quot; とe を表示する
+</code></pre>
+<pre class="python"><code class="language-python">from tkxlib import get_float
 
 
-<<< クラス定義のSPD （参考）>>>
+def sqrt(x):
+    &quot;&quot;&quot;平方根を計算します。&quot;&quot;&quot;
+    if x &lt; 0:
+        raise ValueError(&quot;負の平方根は計算できません&quot;)
+    else:
+        return x ** 0.5
 
-（１）クラス
+
+number = get_float(&quot;小数&gt; &quot;)
+
+try:
+    result = sqrt(number)
+    print(f&quot;平方根＝{round(result, 1)}&quot;)
+except ValueError as error:
+    print(&quot;エラー\n&quot;, error)
+</code></pre>
+<h2 id="toc-57"><a href="#pagetop" class="totop">3. クラスとオブジェクト</a></h2>
+<h3 id="toc-58"><a href="#pagetop" class="totop">3.1 クラスの定義</a></h3>
+<pre><code>※クラスの構成要素をすべて含む例である
+※クラス宣言部と属性は省略できない
+※ただし、属性がない場合は属性：なしと定義する
+※それ以外は必要な構成要素だけを書く
 
 クラス: Member
 │
 ├─目的：会員を表すクラス
 ├─属性
-│    ├─番号：uid 　<- int
-│    ├─名前：name　<- str
-│    └─年齢：_age　<- int　（_ を付けているので仮想属性age を作成することを意味する）
+│    ├─番号：uid: int
+│    ├─名前：name: str
+│    └─年齢：_age: int   ※ _を付けているので仮想属性age を作成することを意味する
 │
-├─既定のメソッド
+├─特殊メソッド  ※自動生成される
 │    │
-│    ├─コンストラクタ　　　（__init__の引数はuid 、name、age となる。age は仮想属性）
-│    └─特殊メソッド← uid　（←uid は特殊メソッド__eq__と__hash__のキーを指定する）
+│    ├─コンストラクタ         ※__init__の引数はuid 、name、age となる。age は仮想属性
+│    ├─表示メソッド          ※__str__ と__repr__を生成する
+│    └─等値メソッド &lt;- uid   ※__eq__と__hash__はuid で比較する
 │
-│
-├─メソッド：age 　（セッターなので@age.setter が付く）
+├─メソッド：age  ※セッターなので@age.setter が付く
 │    │
-│    ├─目的：age のゲッター
+│    ├─目的：age のセッター
 │    ├─引数
-│    │    └─年齢：age_value 　<- int
+│    │    └─年齢：age_value: int
 │    │
 │    ├─戻り値：なし
 │    └─処理
 │          ├─◇─age_value は負である
-│          │          └─ValueError("年齢は0 以上" ）を発生する
+│          │          └─ValueError(&quot;年齢は0 以上&quot; ）を発生する
 │          │
 │          └─_ageにage_value を代入する
-│
 │
 ├─メソッド: membership_fee
 │    │
 │    ├─目的: 会費額を返す
 │    ├─引数: なし
-│    ├─戻り値: 会費 <- int
+│    ├─戻り値: 会費 -&gt; int
 │    │
 │    └─処理
 │        └─ FEEを返す
 │
 ├─クラス変数
-│      └─会費: FEE = 5000 <- int
+│      └─会費: FEE: int = 5000
 │
-└─クラスメソッド: from_csv
+├─クラスメソッド: from_csv
+│      │※メソッド宣言に@classmethodデコレーターが付く
+│      │※属性にアクセスでき、第１引数はclsである
+│      │※この例は、代替コンストラクタの作成例
+│      │
+│      ├─目的: CSV 文字列からインスタンスを作って返す
+│      ├─引数
+│      │    └─CSV 文字列: csv: str
+│      │
+│      ├─戻り値: Memberインスタンス -&gt; Member
+│      │
+│      └─処理
+│          ├─csv をコンマで区切ってリストdtを作る
+│          ├─dtから番号（w_uid ）、氏名（w_name）、年齢（w_age ）を取り出す
+│          │      │
+│          │      └─〇─try
+│          │          │  ├─要素を変数に取り出す─w_uid, w_name, w_age ← dt
+│          │          │  ├─w_uid を整数化してw_uid に再代入する
+│          │          │  └─w_age を整数化してw_age に再代入する
+│          │          │
+│          │          〇─except Exception as e:
+│          │              └─ValueError(&quot;csv が不正&quot;)を発生させる
+│          │
+│          │    ※インスタンス生成には cls(...) を使う
+│          └─w_uid 、w_name、w_age からインスタンスを作って返す
+│
+└─スタティックメソッド: is_adult
+      │※メソッド宣言に@staticmethodデコレーターが付く
+      │※クラスと概念的に強く結びついているが、インスタンスの状態は不要な場合に作る
+      │※属性にアクセスできず、引数にclsをとらない
+      │※Member.is_adult(20) のようにクラス名を付けて呼び出す
       │
-      ├─目的: CSV 文字列からインスタンスを作って返す
+      ├─目的: 年齢が18歳以上（成人）かどうかを判定する
       ├─引数
-      │    └─CSV 文字列: csv <- str
+      │    └─年齢: age: int
       │
-      ├─戻り値: Memberインスタンス<-Member
+      ├─戻り値: 成人かどうか -&gt; bool
       │
       └─処理
-          ├─csv をコンマで区切ってリストdtを作る
-          ├─dtから番号（w_uid ）、氏名（w_name）、年齢（w_age ）を取り出す
-          │      │
-          │      └─〇─try
-          │          │  ├─要素を変数に取り出す─w_uid, w_name, w_age　← dt
-          │          │  ├─w_uid を整数化してw_uid に再代入する
-          │          │  └─w_age を整数化してw_age に再代入する
-          │          │
-          │          〇─except：Exception
-          │              └─ValueError("csv が不正")を発生させる
-          │
-          └─w_uid 、w_name、w_age からインスタンスを作って返す
+          └─ ageが18以上かどうか（age &gt;= 18）を判定して返す
+</code></pre>
+<pre class="python"><code class="language-python">class Member:
+    &quot;&quot;&quot;会員を表すクラス。&quot;&quot;&quot;
 
+    # 会費
+    FEE = 5000
 
-  （２）継承
+    # __init__の引数はuid、name、ageとなる。ageは仮想属性
+    def __init__(self, uid: int, name: str, age: int) -&gt; None:
+        self.uid = uid
+        self.name = name
+        self._age = age
 
-クラス: GeneralMember(Member)
+    # __str__と__repr__を生成する
+    def __str__(self) -&gt; str:
+        return f&quot;Member({self.uid}, {self.name}, {self._age})&quot;
+
+    def __repr__(self) -&gt; str:
+        return (f&quot;Member(uid={self.uid!r}, name={self.name!r}, &quot;
+                f&quot;age={self._age!r})&quot;)
+
+    # __eq__と__hash__はuidで比較する
+    def __eq__(self, other: object) -&gt; bool:
+        if not isinstance(other, Member):
+            return NotImplemented
+        return self.uid == other.uid
+
+    def __hash__(self) -&gt; int:
+        return hash(self.uid)
+
+    # _を付けているので仮想属性ageを作成することを意味する
+    @property
+    def age(self) -&gt; int:
+        &quot;&quot;&quot;年齢を返します。&quot;&quot;&quot;
+        return self._age
+
+    # セッターなので@age.setterが付く
+    @age.setter
+    def age(self, age_value: int) -&gt; None:
+        &quot;&quot;&quot;ageのセッター。&quot;&quot;&quot;
+        if age_value &lt; 0:
+            raise ValueError(&quot;年齢は0以上&quot;)
+        self._age = age_value
+
+    def membership_fee(self) -&gt; int:
+        &quot;&quot;&quot;会費額を返します。&quot;&quot;&quot;
+        return Member.FEE
+
+    # メソッド宣言に@classmethodデコレーターが付く
+    # 属性にアクセスでき、第1引数はclsである
+    # この例は、代替コンストラクタの作成例
+    @classmethod
+    def from_csv(cls, csv: str) -&gt; &quot;Member&quot;:
+        &quot;&quot;&quot;CSV文字列からインスタンスを作って返します。&quot;&quot;&quot;
+        dt = csv.split(&quot;,&quot;)
+        try:
+            w_uid, w_name, w_age = dt
+            w_uid = int(w_uid)
+            w_age = int(w_age)
+        except Exception as error:
+            raise ValueError(&quot;csvが不正&quot;)
+        # インスタンス生成には cls(...) を使う
+        return cls(w_uid, w_name, w_age)
+
+    # メソッド宣言に@staticmethodデコレーターが付く
+    # クラスと概念的に強く結びついているが、インスタンスの状態は不要な場合に作る
+    # 属性にアクセスできず、引数にclsをとらない
+    # Member.is_adult(20) のようにクラス名を付けて呼び出す
+    @staticmethod
+    def is_adult(age: int) -&gt; bool:
+        &quot;&quot;&quot;年齢が18歳以上（成人）かどうかを判定します。&quot;&quot;&quot;
+        return age &gt;= 18
+</code></pre>
+<h3 id="toc-59"><a href="#pagetop" class="totop">3.2 継承</a></h3>
+<h4 id="toc-60"><a href="#pagetop" class="totop">3.2.1 Memberクラスを継承するGeneralMemberクラス</a></h4>
+<pre><code>クラス: GeneralMember(Member)
 │
 ├─目的：一般会員のクラス
 ├─属性
-│    └─レッスンメニュー: lesson_menu <- list[str]
+│    └─レッスンメニュー: lesson_menu: list[str]
 │
-└─既定のメソッド
+└─特殊メソッド
       │
       └─コンストラクタ
+</code></pre>
+<pre class="python"><code class="language-python">class GeneralMember(Member):
+    &quot;&quot;&quot;一般会員のクラス。&quot;&quot;&quot;
 
-
-
-（３）継承でコンストラクタなしのクラス
-
-クラス: SeniorMember(Member)
+    def __init__(self, uid: int, name: str, age: int,
+                 lesson_menu: list[str]) -&gt; None:
+        super().__init__(uid, name, age)
+        self.lesson_menu = lesson_menu
+</code></pre>
+<h4 id="toc-61"><a href="#pagetop" class="totop">3.2.2 コンストラクタのないサブラス</a></h4>
+<pre><code>クラス: SeniorMember(Member)
 │
+├─目的：メソッドだけのクラス
 ├─属性：なし
-├─既定のメソッド：なし
+├─特殊メソッド：なし
 │
-└─メソッド: membership_fee　　　（オーバーライドメソッド）
+└─メソッド: membership_fee   ※オーバーライドメソッド
     │
     ├─目的: 会費額を返す
     ├─引数: なし
-    ├─戻り値: 会費 <- int
+    ├─戻り値: 会費 -&gt; int
     └─処理
           └─ FEE * 0.6　を整数に丸めた額を返す
+</code></pre>
+<pre class="python"><code class="language-python">class SeniorMember(Member):
+    &quot;&quot;&quot;メソッドだけのクラス。&quot;&quot;&quot;
 
-
-（４）ミックスイン
-
-クラス: JsonMixin
+    # オーバーライドメソッド
+    def membership_fee(self) -&gt; int:
+        &quot;&quot;&quot;会費額を返します。&quot;&quot;&quot;
+        return round(Member.FEE * 0.6)
+</code></pre>
+<h4 id="toc-62"><a href="#pagetop" class="totop">3.2.3 ミックスイン</a></h4>
+<pre><code>クラス: JsonMixin
 │
 ├─属性：なし
-├─既定のメソッド：なし
+├─特殊メソッド：なし
 │
 └─メソッド: to_json
     │
     ├─目的: 属性をJSON形式の文字列にして返す
     ├─引数: なし
-    ├─戻り値: クラス属性のJSON形式の文字列 <- str
+    ├─戻り値: クラス属性のJSON形式の文字列 -&gt; str
     └─処理
           └─ return json.dumps(self.__dict__, ensure_ascii=False)
 
-
+※継承を利用してJsonMixinのto_jsonメソッドを取り込む
 クラス: GeneralMember(JsonMixin, Member)
 │
 ├─目的：一般会員のクラス
 ├─属性
-│    └─レッスンメニュー: lesson_menu <- list[str]
+│    └─レッスンメニュー: lesson_menu: list[str]
 │
-└─既定のメソッド
+└─特殊メソッド
       │
       └─コンストラクタ
+</code></pre>
+<pre class="python"><code class="language-python">import json
 
 
-（５）データクラス、バリデーション
+class JsonMixin:
+    &quot;&quot;&quot;属性のJSON変換機能を提供するミックスイン。&quot;&quot;&quot;
 
-データクラス: Person
+    def to_json(self) -&gt; str:
+        &quot;&quot;&quot;属性をJSON形式の文字列にして返します。&quot;&quot;&quot;
+        return json.dumps(self.__dict__, ensure_ascii=False)
+
+
+class GeneralMember(JsonMixin, Member):
+    &quot;&quot;&quot;一般会員のクラス。&quot;&quot;&quot;
+
+    def __init__(self, uid: int, name: str, age: int,
+                 lesson_menu: list[str]) -&gt; None:
+        super().__init__(uid, name, age)
+        self.lesson_menu = lesson_menu
+</code></pre>
+<h4 id="toc-63"><a href="#pagetop" class="totop">3.2.4 データクラス</a></h4>
+<ul>
+<li id="toc-64"><a href="#pagetop" class="totop">データクラスの定義</a></li>
+</ul>
+<pre><code>データクラス: Person
+│
+├─目的：個人を表すクラス
+└─属性
+      ├─氏名: name: str
+      └─年齢: age: int
+</code></pre>
+<pre class="python"><code class="language-python">from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Person:
+    &quot;&quot;&quot;個人を表すクラス。&quot;&quot;&quot;
+
+    name: str
+    age: int
+</code></pre>
+<ul>
+<li id="toc-65"><a href="#pagetop" class="totop">属性値の検査（バリデーション）</a></li>
+</ul>
+<pre><code>データクラス: Person
 │
 ├─目的：個人を表すクラス
 ├─属性
-│    ├─氏名: name <- str
-│    └─年齢: age <- int
-│
-├─既定のメソッド：なし
-│
+│    ├─氏名: name: str
+│    └─年齢: age: int
 │
 └─メソッド: __post_init__
     │
@@ -493,7 +1466,22 @@ SPDパターン for Python
     ├─戻り値: なし
     └─処理
           └─◇─ ageは負
-                      └─ ValueError( "年齢は負にできません")　を発生させる
-</pre>
+                      └─ ValueError( &quot;年齢は負にできません&quot;)　を発生させる
+</code></pre>
+<pre class="python"><code class="language-python">from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Person:
+    &quot;&quot;&quot;個人を表すクラス。&quot;&quot;&quot;
+
+    name: str
+    age: int
+
+    def __post_init__(self) -&gt; None:
+        &quot;&quot;&quot;ageのバリデーション。&quot;&quot;&quot;
+        if self.age &lt; 0:
+            raise ValueError(&quot;年齢は負にできません&quot;)
+</code></pre>
 </body>
 </html>

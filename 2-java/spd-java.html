@@ -28,7 +28,7 @@ h1, h2, h3, h4, h5, h6 {
 
 body {
    color: black;
-   font-size: 14pt;
+   font-size: 12pt;
    line-height: 1.5em;
    margin-left: 60pt;
 }
@@ -109,15 +109,105 @@ hr { border: none; border-top: 1px solid #bbb; margin: 20pt 0; }
 /* ---- チェックリスト ---- */
 ul.checklist { list-style: none; padding-left: 4pt; }
 ul.checklist li { text-indent: -1.4em; padding-left: 1.4em; }
+
+/* ---- 目次 ---- */
+nav#toc {
+   background-color: #fafbfc;
+   border: 1px solid #e0e0e0;
+   border-radius: 6px;
+   padding: 12pt 20pt 16pt 20pt;
+   margin: 12pt 0 24pt 0;
+   max-width: 640pt;
+}
+nav#toc h2 {
+   font-size: 15pt;
+   border-bottom: none;
+   margin-top: 0;
+   margin-bottom: 6pt;
+   padding-bottom: 0;
+}
+ul.toc-list {
+   list-style: none;
+   margin: 0;
+   padding-left: 0;
+   column-count: 2;
+   column-gap: 24pt;
+}
+ul.toc-list li { margin: 1.26pt 0; break-inside: avoid; }
+ul.toc-list li a {
+   text-decoration: none;
+   color: #234;
+}
+ul.toc-list li a:hover { text-decoration: underline; }
+ul.toc-list li.toc-h2 { font-weight: bold; font-size: 12.5pt; margin-top: 8pt; }
+ul.toc-list li.toc-h3 { font-size: 11.5pt; padding-left: 16pt; }
+ul.toc-list li.toc-li { font-size: 10.5pt; padding-left: 32pt; color: #555; }
+ul.toc-list li.toc-li a { color: #555; }
+
+/* ---- 見出し文字列からページトップへ戻るリンク ---- */
+a.totop {
+   color: inherit;
+   text-decoration: none;
+}
+a.totop:hover { text-decoration: underline; }
+
 </style>
 </head>
 <body>
-<h1>SPD for Java</h1>
+<h1 id="pagetop">SPD for Java</h1>
 <p class="small">Java言語用のSPDのパターンをまとめた。<br>
 Gemini Gemを使ってSPDからコードを生成した。<br>
 Gem用には「カスタム指示」に3400文字（約1000行）の指示を入力し、「知識」にpom.xmlを置いた。<br>
-全ての生成を行うための使用量は、無償ユーザーの一週間の上限の２％である。</p>
-<h2>1.  コメント(※)</h2>
+AIモードはデフォルトでよいが、複雑なSPDでは上位のモードを使うこと。</p>
+<nav id="toc">
+<h2>目次</h2>
+<ul class="toc-list">
+<li class="toc-h2"><a href="#toc-1">1.  コメント(※)</a></li>
+<li class="toc-h2"><a href="#toc-2">2. 基本構造</a></li>
+<li class="toc-h3"><a href="#toc-3">2.1 順次構造</a></li>
+<li class="toc-h3"><a href="#toc-4">2.2. 分岐構造</a></li>
+<li class="toc-li"><a href="#toc-5">if文</a></li>
+<li class="toc-li"><a href="#toc-6">if-else文</a></li>
+<li class="toc-li"><a href="#toc-7">if else-if文</a></li>
+<li class="toc-li"><a href="#toc-8">switch文</a></li>
+<li class="toc-li"><a href="#toc-9">ブロック文付きswitch文</a></li>
+<li class="toc-li"><a href="#toc-10">switch式</a></li>
+<li class="toc-li"><a href="#toc-11">ブロック文付きswitch式</a></li>
+<li class="toc-h3"><a href="#toc-12">2.3. 反復構造</a></li>
+<li class="toc-h3"><a href="#toc-13">for文</a></li>
+<li class="toc-li"><a href="#toc-14">インデックス付きfor文</a></li>
+<li class="toc-li"><a href="#toc-15">拡張for文</a></li>
+<li class="toc-li"><a href="#toc-16">拡張for文でのリスト処理</a></li>
+<li class="toc-li"><a href="#toc-17">拡張for文でのオブジェクトのリストの処理</a></li>
+<li class="toc-h3"><a href="#toc-18">while文</a></li>
+<li class="toc-li"><a href="#toc-19">無限ループのパターン</a></li>
+<li class="toc-li"><a href="#toc-20">実行文を含む条件判定</a></li>
+<li class="toc-h2"><a href="#toc-21">3. ファイル入出力処理と例外処理</a></li>
+<li class="toc-h3"><a href="#toc-22">3.1 リストの出力</a></li>
+<li class="toc-li"><a href="#toc-23">リストの一括出力</a></li>
+<li class="toc-li"><a href="#toc-24">リストを1行ずつ出力する</a></li>
+<li class="toc-h3"><a href="#toc-25">3.2 ファイル入力</a></li>
+<li class="toc-li"><a href="#toc-26">テキストの一括入力</a></li>
+<li class="toc-li"><a href="#toc-27">テキストファイルから一行ずつ入力する</a></li>
+<li class="toc-h2"><a href="#toc-28">4. クラスとオブジェクト</a></li>
+<li class="toc-h3"><a href="#toc-29">4.1 クラスメソッド</a></li>
+<li class="toc-h3"><a href="#toc-30">4.2. レコード</a></li>
+<li class="toc-h3"><a href="#toc-32">4.3. クラス</a></li>
+<li class="toc-li"><a href="#toc-33">基本的なクラス</a></li>
+<li class="toc-li"><a href="#toc-34">コンストラクタのオーバーロード</a></li>
+<li class="toc-li"><a href="#toc-35">移譲メソッドのあるクラス</a></li>
+<li class="toc-li"><a href="#toc-36">イミュータブルなクラス</a></li>
+<li class="toc-h3"><a href="#toc-37">4.4.クラス継承</a></li>
+<li class="toc-li"><a href="#toc-38">抽象クラス</a></li>
+<li class="toc-li"><a href="#toc-39">抽象クラスを継承したサブクラス１</a></li>
+<li class="toc-li"><a href="#toc-40">抽象クラスを継承したサブクラス２</a></li>
+<li class="toc-li"><a href="#toc-41">抽象クラスを継承したサブクラス３</a></li>
+<li class="toc-li"><a href="#toc-42">多態性を確認する</a></li>
+<li class="toc-h3"><a href="#toc-31">4.5. インタフェース</a></li>
+<li class="toc-li"><a href="#toc-43">インタフェースの実装</a></li>
+</ul>
+</nav>
+<h2 id="toc-1"><a href="#pagetop" class="totop">1.  コメント(※)</a></h2>
 <p>・※から行末まではコメントであり、SPDの構造・処理としては解釈しない。<br>
 ・コメントは生成コードの対応する位置に // コメントとして転記する。<br>
 ・引用符(&quot;…&quot;)・鉤括弧(「…」)内の※はコメント開始とみなさない。<br>
@@ -138,8 +228,8 @@ public class Example1 {
     }
 }
 </code></pre>
-<h2>2. 基本構造</h2>
-<h3>2.1 順次構造</h3>
+<h2 id="toc-2"><a href="#pagetop" class="totop">2. 基本構造</a></h2>
+<h3 id="toc-3"><a href="#pagetop" class="totop">2.1 順次構造</a></h3>
 <pre><code>複合代入演算子の働き(順次構造)
 │
 ├─変数var に10を入れる
@@ -147,8 +237,7 @@ public class Example1 {
 └─var を表示する
 </code></pre>
 
-<pre class="java"><code class="language-java">/*
-public class Example2_1 {
+<pre class="java"><code class="language-java">public class Example2_1 {
     public static void main(String[] args) {
         int var = 10;
         var += 1;
@@ -156,9 +245,9 @@ public class Example2_1 {
     }
 }
 </code></pre>
-<h3>2.2. 分岐構造</h3>
+<h3 id="toc-4"><a href="#pagetop" class="totop">2.2. 分岐構造</a></h3>
 <ul>
-<li>if文</li>
+<li id="toc-5"><a href="#pagetop" class="totop">if文</a></li>
 </ul>
 <pre><code>平方根を計算する(if文)
 │
@@ -182,7 +271,7 @@ public class Example2_2_1 {
 }
 </code></pre>
 <ul>
-<li>if-else文</li>
+<li id="toc-6"><a href="#pagetop" class="totop">if-else文</a></li>
 </ul>
 <pre><code>サイコロゲーム(if-else 文)
 │
@@ -208,7 +297,7 @@ public class Example2_2_2 {
 }
 </code></pre>
 <ul>
-<li>if else-if文</li>
+<li id="toc-7"><a href="#pagetop" class="totop">if else-if文</a></li>
 </ul>
 <pre><code>身長の階級(if-else if文)
 │
@@ -243,7 +332,7 @@ public class Example2_2_3 {
 }
 </code></pre>
 <ul>
-<li>switch文</li>
+<li id="toc-8"><a href="#pagetop" class="totop">switch文</a></li>
 </ul>
 <pre><code>エラーコードの判定(switch文)
   │
@@ -267,7 +356,7 @@ public class Example2_2_4 {
 }
 </code></pre>
 <ul>
-<li>ブロック文付きswitch文</li>
+<li id="toc-9"><a href="#pagetop" class="totop">ブロック文付きswitch文</a></li>
 </ul>
 <pre><code>エラーコードの判定(switch文、ブロック)
 │
@@ -297,7 +386,7 @@ public class Example2_2_5 {
 }
 </code></pre>
 <ul>
-<li>switch式</li>
+<li id="toc-10"><a href="#pagetop" class="totop">switch式</a></li>
 </ul>
 <pre><code>エラーコードの判定(switch式)
   │
@@ -324,7 +413,7 @@ public class Example2_2_6 {
 }
 </code></pre>
 <ul>
-<li>ブロック文付きswitch式</li>
+<li id="toc-11"><a href="#pagetop" class="totop">ブロック文付きswitch式</a></li>
 </ul>
 <pre><code>エラーコードの判定(switch式、ブロック)
 │
@@ -354,10 +443,10 @@ public class Example2_2_7 {
     }
 }
 </code></pre>
-<h2>2.3. 反復構造</h2>
-<h3>for文</h3>
+<h2 id="toc-12"><a href="#pagetop" class="totop">2.3. 反復構造</a></h2>
+<h3 id="toc-13"><a href="#pagetop" class="totop">for文</a></h3>
 <ul>
-<li>インデックス付きfor文</li>
+<li id="toc-14"><a href="#pagetop" class="totop">インデックス付きfor文</a></li>
 </ul>
 <pre><code>ループ変数を使って指定回数繰り返すfor 文
 │
@@ -375,12 +464,12 @@ public class Example2_2_7 {
 }
 </code></pre>
 <ul>
-<li>拡張for文</li>
+<li id="toc-15"><a href="#pagetop" class="totop">拡張for文</a></li>
 </ul>
 <pre><code>拡張for 文
 │
 ├─整数のリストを作成して、変数listに代入する
-│        └──list = [10, 20, 30]
+│        └──list ← [10, 20, 30]
 │
 └─全ての要素を表示する─↻─for: n ← list
                          │
@@ -399,12 +488,12 @@ public class Example2_3_2 {
 }
 </code></pre>
 <ul>
-<li>拡張for文でのリスト処理</li>
+<li id="toc-16"><a href="#pagetop" class="totop">拡張for文でのリスト処理</a></li>
 </ul>
 <pre><code>リストの要素を集計する(拡張for 文、集計処理)
 │
 ├─準備┬─整数のリストを作成して、変数listに代入する
-│      │        └──list = [10, 20, 30]
+│      │        └──list ← [10, 20, 30]
 │      └─合計を入れる変数int total を宣言してゼロを代入する
 │
 ├─合計を計算する─↻─for: n ← list
@@ -439,14 +528,14 @@ public class Example2_3_3 {
 }
 </code></pre>
 <ul>
-<li>拡張for文でのオブジェクトのリストの処理</li>
+<li id="toc-17"><a href="#pagetop" class="totop">拡張for文でのオブジェクトのリストの処理</a></li>
 </ul>
 <pre><code>オブジェクトのリスト(拡張for 文、オブジェクトのリスト)
 │
 ├─Product クラスのインスタンスのリストを作る
-│    └─products = (new Product(MT890, ステンレスネジ, 280, false),
-│                    new Product(MT810, タッピングネジ, 160, true),
-│                    new Product(MT900, スクリューネジ, 330, true) )
+│    └─products ← (new Product(MT890, ステンレスネジ, 280, false),
+│                     new Product(MT810, タッピングネジ, 160, true),
+│                     new Product(MT900, スクリューネジ, 330, true) )
 │
 └─productsの要素を表示する
       └─↻─ for: p ← products
@@ -469,9 +558,9 @@ public class Example2_3_4 {
     }
 }
 </code></pre>
-<h3>while文</h3>
+<h3 id="toc-18"><a href="#pagetop" class="totop">while文</a></h3>
 <ul>
-<li>無限ループのパターン</li>
+<li id="toc-19"><a href="#pagetop" class="totop">無限ループのパターン</a></li>
 </ul>
 <pre><code>電卓プログラム(while 文、無限ループのパターン)
 │
@@ -509,7 +598,7 @@ public class Example2_3_5 {
 }
 </code></pre>
 <ul>
-<li>実行文を含む条件判定</li>
+<li id="toc-20"><a href="#pagetop" class="totop">実行文を含む条件判定</a></li>
 </ul>
 <pre><code>電卓プログラム(while 文、入力して条件判定のパターン)
 │
@@ -542,15 +631,15 @@ public class Example2_3_6 {
     }
 }
 </code></pre>
-<h2>3. ファイル入出力処理と例外処理</h2>
-<h3>3.1 リストの出力</h3>
+<h2 id="toc-21"><a href="#pagetop" class="totop">3. ファイル入出力処理と例外処理</a></h2>
+<h3 id="toc-22"><a href="#pagetop" class="totop">3.1 リストの出力</a></h3>
 <ul>
-<li>リストの一括出力</li>
+<li id="toc-23"><a href="#pagetop" class="totop">リストの一括出力</a></li>
 </ul>
 <pre><code>リストをテキストファイルに一括書き出しする(例外処理)
 │
-├─準備┬─整数のリストを作る──list = [10, 20, 30]
-│      └─変数var pathにoutput.txtのパスを代入する
+├─準備┬─整数のリストを作る──list ← [10, 20, 30]
+│      └─変数var path ← output.txtのパス
 │
 └─一括出力─〇─ try
               │    └─リストをoutput.txtに一括出力する
@@ -577,12 +666,12 @@ public class Example2_3_7 {
 }
 </code></pre>
 <ul>
-<li>リストを1行ずつ出力する</li>
+<li id="toc-24"><a href="#pagetop" class="totop">リストを1行ずつ出力する</a></li>
 </ul>
 <pre><code>行単位のファイル書き出し(例外処理、リソース付きtry 文)
 │
-├─準備┬─リストを作って変数listに代入する：var list = List.of(10, 20, 30)
-│      └─path = output.txtのパス
+├─準備┬─リストを作って変数listに代入する：list ← [10, 20, 30]
+│      └─path ← output.txtのパス
 │
 └─１行ずつ書き出す─〇─try: path によりPrintWriter を作って変数out に代入する
                       │  └─↻─for: listから毎回１要素を取り出して変数lineに代入する
@@ -613,17 +702,17 @@ public class Example2_3_8 {
     }
 }
 </code></pre>
-<h3>3.2 ファイル入力</h3>
+<h3 id="toc-25"><a href="#pagetop" class="totop">3.2 ファイル入力</a></h3>
 <ul>
-<li>
+<li id="toc-26"><a href="#pagetop" class="totop">
 <p>テキストの一括入力</p>
-</li>
-<li>
+</a></li>
+<li id="toc-27"><a href="#pagetop" class="totop">
 <p>テキストファイルから一行ずつ入力する</p>
-</li>
+</a></li>
 </ul>
-<h2>4. クラスとオブジェクト</h2>
-<h3>4.1 クラスメソッド</h3>
+<h2 id="toc-28"><a href="#pagetop" class="totop">4. クラスとオブジェクト</a></h2>
+<h3 id="toc-29"><a href="#pagetop" class="totop">4.1 クラスメソッド</a></h3>
 <pre><code>クラスメソッド：mile2km
 │
 ├─目的：マイルを距離に変換する
@@ -654,7 +743,7 @@ public class Example4_1 {
     }
 }
 </code></pre>
-<h3>4.2. レコード</h3>
+<h3 id="toc-30"><a href="#pagetop" class="totop">4.2. レコード</a></h3>
 <pre><code>レコード：Product
 │
 ├─目的：製品レコード
@@ -673,42 +762,11 @@ public record Product(
     boolean stock  // 在庫の有無
 ) {}
 </code></pre>
-<h3>4.3. インタフェース</h3>
-<pre><code>    インタフェース：versionable
-    │
-    ├─目的：バージョン番号を返す
-    │
-    ├─インスタンスメソッド：virtual version
-    │      ├─目的：バージョン番号を返す
-    │      ├─引数：なし
-    │      └─戻り値：String、バージョン番号
-    │
-    └─インスタンスメソッド：virtual versionEx
-            ├─目的：バージョン番号と説明を返す
-            ├─引数：なし
-            └─戻り値：String、バージョン番号と簡単な説明
-</code></pre>
 
 
-<pre class="java"><code class="language-java">/** バージョン番号を返す */
-public interface Versionable {
-
-    /**
-     * バージョン番号を返す
-     * @return バージョン番号
-     */
-    String version();
-
-    /**
-     * バージョン番号と説明を返す
-     * @return バージョン番号と簡単な説明
-     */
-    String versionEx();
-}
-</code></pre>
-<h3>4.4. クラス</h3>
+<h3 id="toc-32"><a href="#pagetop" class="totop">4.3. クラス</a></h3>
 <ul>
-<li>基本的なクラス</li>
+<li id="toc-33"><a href="#pagetop" class="totop">基本的なクラス</a></li>
 </ul>
 <pre><code>クラス：Member
 │
@@ -835,8 +893,9 @@ public class Member {
     }
 }
 </code></pre>
+
 <ul>
-<li>コンストラクタのオーバーロード</li>
+<li id="toc-34"><a href="#pagetop" class="totop">コンストラクタのオーバーロード</a></li>
 </ul>
 <pre><code>クラス：Joining
   │
@@ -923,7 +982,7 @@ public class Joining {
 }
 </code></pre>
 <ul>
-<li>移譲メソッドのあるクラス</li>
+<li id="toc-35"><a href="#pagetop" class="totop">移譲メソッドのあるクラス</a></li>
 </ul>
 <pre><code>レコード：PersonalInfo
   │
@@ -985,7 +1044,7 @@ public class Employee {
 }
 </code></pre>
 <ul>
-<li>イミュータブルなクラス</li>
+<li id="toc-36"><a href="#pagetop" class="totop">イミュータブルなクラス</a></li>
 </ul>
 <pre><code>※ミュータブルなクラス
 クラス：PersonalInfo
@@ -1075,80 +1134,245 @@ public final class Employee {
     }
 }
 </code></pre>
-<h3>4.5.クラス継承</h3>
+<h3 id="toc-37"><a href="#pagetop" class="totop">4.4.クラス継承</a></h3>
+
+
 <ul>
-<li>メソッドを追加したサブクラス</li>
+<li id="toc-38"><a href="#pagetop" class="totop">抽象クラス</a></li>
 </ul>
-<pre><code>クラス：StudentMember ─⊳ Member
-│
-├─目的：学生会員を表すクラス
-├─フィールド：なし
-├─自動生成
-│  ├─コンストラクタ
-│  ├─ゲッター
-│  └─ toString
-│
-│  ※オーバーライド
-└─インスタンスメソッド：membership_fee
+<pre><code>  抽象クラス：Member
+  │
+  ├─目的：会員を表すクラス
+  │
+  ├─フィールド
+  │  ├─番号：int uid
+  │  └─名前：String name
+  │
+  ├─自動生成
+  │  ├─# コンストラクタ　　　　　　　※サブクラスから呼び出される以外ないのでprotected
+  │  ├─ゲッター　　　　　　　　　　　※全フィールドのゲッター
+  │  └─toString　　　　　　　　　　　※toString()メソッド
+  │
+  └─抽象メソッド：membership_fee　　　※抽象メソッドは処理を書かない
       │
       ├─目的：会費額を返す
       ├─引数：なし
-      ├─戻り値：int 、会費の額
-      └─処理
-            └─ FEE×0.7 を整数に丸めて返す
+      └─戻り値: int 、会費の額
 </code></pre>
 
-<pre class="java"><code class="language-java">// 学生会員を表すクラス
-public class StudentMember extends Member {
+<pre class="java"><code class="language-java">// 会員を表すクラス
+public abstract class Member {
+    
+    private int uid; // 番号
+    private String name; // 名前
 
     // 自動生成：コンストラクタ（全引数）
-    public StudentMember(int uid, String name) {
+    // サブクラスから呼び出される以外ないのでprotected
+    protected Member(int uid, String name) {
+        this.uid = uid;
+        this.name = name;
+    }
+
+    // 自動生成：ゲッター
+    // 全フィールドのゲッター
+    public int getUid() {
+        return uid;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    // 自動生成：toString
+    // toString()メソッド
+    @Override
+    public String toString() {
+        return "Member[uid=" + uid + ", name=" + name + "]";
+    }
+
+    /**
+     * 会費額を返す
+     *
+     * @return 会費の額
+     */
+    // 抽象メソッドは処理を書かない
+    public abstract int membership_fee();
+}
+</code></pre>
+
+
+<ul>
+<li id="toc-39"><a href="#pagetop" class="totop">抽象クラスを継承したサブクラス１</a></li>
+</ul>
+<pre><code>  クラス：GeneralMember ─⊳ Member
+  │
+  ├─目的：一般会員を表すクラス
+  │
+  ├─フィールド：なし
+  │
+  ├─自動生成
+  │  └─コンストラクタ
+  │
+  │  ※オーバーライド
+  └─インスタンスメソッド：membership_fee
+        │
+        ├─目的：会費額を返す
+        ├─引数：なし
+        ├─戻り値：int 、会費の額
+        └─処理
+              └─1000を返す
+</code></pre>
+
+
+<pre class="java"><code class="language-java">// 一般会員を表すクラス
+public class GeneralMember extends Member {
+
+    // 自動生成：コンストラクタ（全引数）
+    public GeneralMember(int uid, String name) {
         super(uid, name);
+    }
+
+    // オーバーライド
+    /**
+     * 会費額を返す
+     *
+     * @return 会費の額
+     */
+    @Override
+    public int membership_fee() {
+        return 1000;
+    }
+}
+</code></pre>
+
+<ul>
+<li id="toc-40"><a href="#pagetop" class="totop">抽象クラスを継承したサブクラス２</a></li>
+</ul>
+<pre><code>  クラス：StudentMember ─⊳ Member
+  │
+  ├─目的：学生会員を表すクラス
+  │
+  ├─フィールド
+  │        └─期限日：LocalDate expDate 　※会員資格の有効期限日
+  │
+  ├─自動生成
+  │    ├─コンストラクタ
+  │    ├─ゲッター
+  │    └─toString
+  │
+  │  ※オーバーライド
+  ├─インスタンスメソッド：membership_fee
+  │    │
+  │    ├─目的：会費額を返す
+  │    ├─引数：なし
+  │    ├─戻り値：int 、会費の額
+  │    └─処理
+  │          └─◇─期限日を過ぎている
+  │              │    └─1000　を返す
+  │              └─else
+  │                    └─500 を返す
+  │
+  └─インスタンスメソッド：isExpired
+        │
+        ├─目的：期限日が過ぎたかどうか調べる
+        ├─引数：なし
+        ├─戻り値：boolean 、過ぎている時trueを返す
+        └─処理
+              ├─today に今日の日付を入れる
+              └─today がexpDate よりも後か調べて戻り値として返す
+</code></pre>
+
+<pre class="java"><code class="language-java">import java.time.LocalDate;
+
+// 学生会員を表すクラス
+public class StudentMember extends Member {
+
+    private LocalDate expDate; // 期限日 ※会員資格の有効期限日
+
+    // 自動生成：コンストラクタ（全引数）
+    public StudentMember(int uid, String name, LocalDate expDate) {
+        super(uid, name);
+        this.expDate = expDate;
+    }
+
+    // 自動生成：ゲッター
+    public LocalDate getExpDate() {
+        return expDate;
     }
 
     // 自動生成：toString
     @Override
     public String toString() {
-        return &quot;StudentMember[uid=&quot; + getUid() + &quot;, name=&quot; + getName() + &quot;]&quot;;
+        return "StudentMember[expDate=" + expDate + "]";
     }
 
+    // ※オーバーライド
     /**
      * 会費額を返す
+     *
      * @return 会費の額
      */
     @Override
     public int membership_fee() {
-        return (int) Math.round(FEE * 0.7);
+        if (isExpired()) {
+            return 1000;
+        } else {
+            return 500;
+        }
+    }
+
+    /**
+     * 期限日が過ぎたかどうか調べる
+     *
+     * @return 過ぎている時trueを返す
+     */
+    public boolean isExpired() {
+        var today = LocalDate.now();
+        return today.isAfter(expDate);
     }
 }
 </code></pre>
 <ul>
-<li>フィールドを追加したサブクラス</li>
+<li id="toc-41"><a href="#pagetop" class="totop">抽象クラスを継承したサブクラス３</a></li>
 </ul>
-<pre><code>クラス：SeniorMember ─⊳ Member
-│
-├─目的：シニア会員を表すクラス
-├─フィールド
-│    └─誕生日：LocalDate birthday
-│
-├─自動生成
-│    ├─コンストラクタ
-│    ├─ゲッター
-│    └─toString
-│
-└─インスタンスメソッド：age
-      │
-      ├─目的：年齢を返す
-      ├─引数：なし
-      ├─戻り値：int 、年齢
-      └─処理
-            ├─today ← 今日の日付
-            ├─period ← 誕生日(birthday)から今日(today )までの期間を計算する
-            └─periodから年の値を取り出して返す
+<pre><code>  クラス：SeniorMember　─⊳ Member
+  │
+  ├─目的：シニア会員を表すクラス
+  │
+  ├─フィールド
+  │    └─誕生日：LocalDate birthday
+  │
+  ├─自動生成
+  │    ├─コンストラクタ
+  │    ├─ゲッター
+  │    └─toString
+  │
+  │  ※オーバーライド
+  ├─インスタンスメソッド：membership_fee
+  │    │
+  │    ├─目的：会費額を返す
+  │    ├─引数：なし
+  │    ├─戻り値：int 、会費の額
+  │    └─処理
+  │          └─◇─年齢は70以上か
+  │              │    └─500 を返す
+  │              └─else
+  │                    └─700 を返す
+  │
+  └─インスタンスメソッド：age
+        │
+        ├─目的：年齢を返す
+        ├─引数：なし
+        ├─戻り値：int 、年齢
+        └─処理
+              ├─today ←　今日の日付
+              ├─period　←　誕生日(birthday)から今日(today )までの期間を計算する
+              └─periodから年の値を取り出して返す
 </code></pre>
 
 <pre class="java"><code class="language-java">import java.time.LocalDate;
 import java.time.Period;
+
 // シニア会員を表すクラス
 public class SeniorMember extends Member {
 
@@ -1168,11 +1392,27 @@ public class SeniorMember extends Member {
     // 自動生成：toString
     @Override
     public String toString() {
-        return &quot;SeniorMember[uid=&quot; + getUid() + &quot;, name=&quot; + getName() + &quot;, birthday=&quot; + birthday + &quot;]&quot;;
+        return "SeniorMember[birthday=" + birthday + "]";
+    }
+
+    // ※オーバーライド
+    /**
+     * 会費額を返す
+     *
+     * @return 会費の額
+     */
+    @Override
+    public int membership_fee() {
+        if (age() >= 70) {
+            return 500;
+        } else {
+            return 700;
+        }
     }
 
     /**
      * 年齢を返す
+     *
      * @return 年齢
      */
     public int age() {
@@ -1182,69 +1422,160 @@ public class SeniorMember extends Member {
     }
 }
 </code></pre>
-<h3>4.6. インタフェースの実装</h3>
-<pre><code>クラス：StudentMember ─⊳ Member ---⊳ Versionable
-│
-├─目的：学生会員を表すクラス
-├─フィールド：なし
-├─自動生成
-│  └─コンストラクタ
-│
-├─インスタンスメソッド：membership_fee
-│    │
-│    ├─目的：会費額を返す
-│    ├─引数：なし
-│    ├─戻り値：int 、会費の額
-│    └─処理
-│          └─ FEE×0.7 を整数に丸めて返す
-│
-│※インタフェースの抽象メソッドの実装
-├─インスタンスメソッド：version
-│  ├─戻り値：String  、バージョン番号
-│  └─処理
-│        └─ &quot;StudentMember 1.0.0&quot;を返す
-│
-│※インタフェースの抽象メソッドの実装
-└─インスタンスメソッド：versionEx
-    │
-    ├─引数：なし
-    ├─戻り値：String  、バージョン番号と説明
-    └─処理
-          └─&quot;StudentMember 1.0.0：学生を表すクラス&quot; を返す
+
+
+
+<ul>
+<li id="toc-42"><a href="#pagetop" class="totop">多態性を確認する</a></li>
+</ul>
+<pre><code>  多態性の確認(PolymorphismSample.java)
+  │
+  ├─インスタンスのリストを作ってlistに入れる
+  │    └─list　←　[ new GeneralMember(100, "斎藤一郎"),
+  │                    new StudentMember(200, "山田花子", LocalDate.of(2030, 3, 1)),
+  │                    new SeniorMember(300,"木村太郎", LocalDate.of(1965, 8,1)) ]
+  │
+  ├─会費の合計を計算する
+  │    ├─合計を入れる変数total に0 を入れる
+  │    └─合計を計算する─↻─for:member　← list
+  │                        │
+  │                        ├─memberの名前と会費額を "〇〇：〇〇" の形式で表示する
+  │                        └─memberの会費額をtotal に加算する
+  │
+  └─合計を表示する─" 合計＝〇〇円" の形式でtotal を表示する
+                          └─3 桁ごとにコンマを入れて表示する
+</code></pre>
+
+<pre class="java"><code class="language-java">iimport java.time.LocalDate;
+import java.util.List;
+
+public class PolymorphismSample {
+
+    public static void main(String[] args) {
+        var list = List.of(
+            new GeneralMember(100, "斎藤一郎"),
+            new StudentMember(200, "山田花子", LocalDate.of(2030, 3, 1)),
+            new SeniorMember(300, "木村太郎", LocalDate.of(1965, 8, 1))
+        );
+
+        int total = 0;
+        for (var member : list) {
+            System.out.printf("%s：%d%n", member.getName(), member.membership_fee());
+            total += member.membership_fee();
+        }
+
+        System.out.printf(" 合計＝%,d円%n", total);
+    }
+}
 </code></pre>
 
 
-<pre class="java"><code class="language-java">// 学生会員を表すクラス
-public class StudentMember extends Member implements Versionable {
 
-    // 自動生成：コンストラクタ（全引数）
-    public StudentMember(int uid, String name) {
+<h3 id="toc-31"><a href="#pagetop" class="totop">4.5. インタフェース</a></h3>
+<pre><code>  インタフェース：versionable
+  │
+  ├─目的：バージョン番号を返す
+  │
+  ├─抽象メソッド：version
+  │      ├─目的：バージョン番号を返す
+  │      ├─引数：なし
+  │      └─戻り値：String、バージョン番号
+  │
+  └─抽象メソッド：versionEx
+          ├─目的：バージョン番号と説明を返す
+          ├─引数：なし
+          └─戻り値：String、バージョン番号と簡単な説明
+</code></pre>
+
+
+<pre class="java"><code class="language-java">/** バージョン番号を返す */
+public interface Versionable {
+
+    /**
+     * バージョン番号を返す
+     * @return バージョン番号
+     */
+    String version();
+
+    /**
+     * バージョン番号と説明を返す
+     * @return バージョン番号と簡単な説明
+     */
+    String versionEx();
+}
+</code></pre>
+
+
+<h3 id="toc-43"><a href="#pagetop" class="totop">インタフェースの実装</a></h3>
+<pre><code>  ※クラス継承＋インタフェースの実装
+  クラス：GeneralMember ─⊳ Member --- ⊳Versionable
+  │
+  ├─目的：一般会員を表すクラス
+  │
+  ├─フィールド：なし
+  │
+  ├─自動生成
+  │  └─コンストラクタ
+  │
+  │  ※オーバーライド
+  ├─インスタンスメソッド：membership_fee
+  │    │
+  │    ├─目的：会費額を返す
+  │    ├─引数：なし
+  │    ├─戻り値：int 、会費の額
+  │    └─処理
+  │          └─1000を返す
+  │
+  │  ※インタフェースの抽象メソッドの実装
+  ├─インスタンスメソッド：version
+  │  ├─戻り値：String　、バージョン番号
+  │  └─処理
+  │        └─ "GeneralMember 1.0.0"を返す
+  │
+  │  ※インタフェースの抽象メソッドの実装
+  └─インスタンスメソッド：versionEx
+      │
+      ├─引数：なし
+      ├─戻り値：String　、バージョン番号と説明
+      └─処理
+            └─"GeneralMember 1.0.0：一般会員を表すクラス" を返す
+</code></pre>
+
+
+<pre class="java"><code class="language-java">// 一般会員を表すクラス
+public class GeneralMember extends Member implements Versionable {
+
+    // 自動生成：コンストラクタ：全引数
+    public GeneralMember(int uid, String name) {
         super(uid, name);
     }
 
+    // オーバーライド
     /**
      * 会費額を返す
      * @return 会費の額
      */
     @Override
     public int membership_fee() {
-        return (int) Math.round(FEE * 0.7);
+        return 1000;
     }
 
+    // インタフェースの抽象メソッドの実装
     /**
      * @return バージョン番号
      */
     @Override
     public String version() {
-        return &quot;StudentMember 1.0.0&quot;;
+        return "GeneralMember 1.0.0";
     }
 
+    // インタフェースの抽象メソッドの実装
     /**
      * @return バージョン番号と説明
      */
     @Override
     public String versionEx() {
-        return &quot;StudentMember 1.0.0：学生を表すクラス&quot;;
+        return "GeneralMember 1.0.0：一般会員を表すクラス";
     }
 }
 </code></pre>

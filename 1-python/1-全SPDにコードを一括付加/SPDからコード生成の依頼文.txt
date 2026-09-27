@@ -1,0 +1,7 @@
+
+- 1-python/spd-pattern-python.mdは、python用SPDを集めたパターン集です。SPDは```と```で囲まれた部分で、これをSPDパートということにします。
+- 最初の仕事は、各SPDパートのSPDから、Pythonのコードを生成することです。
+- 次にSPDパートの下に```pythonを挿入したうえで、生成したPythonのコードだけを挿入してください。また、末尾の行として```だけの行を挿入します。
+- Pythonコードの生成方法は、同じフォルダにあるcopilot-instructions.mdファイルの内容に従ってください。
+- 修正したspd-pattern-python.mdをspd-pattern-python-code.mdとして出力し、ダウンロードできるようにしてください。
+

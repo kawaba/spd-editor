@@ -1,0 +1,1 @@
+﻿> 1-python/spd-python.htmlと、2-java/spd-java.htmlはほとんど同じですが、唯一の違いは2-java/spd-java.htmlには、先頭に目次があり、リンクがはってあることです。 1-python/spd-python.htmlにも同様の目次とリンクを作成してください。
