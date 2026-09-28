@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.14.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.15.0</span></h1>
   </div>
 </div>
 
@@ -115,7 +115,7 @@
 </div>
 
 <!-- 起動時設定（任意）。同フォルダに spd-config.js があれば読み込む。
-     例： var SPD_CONFIG = { lang: "java" };   （lang は "java" / "python" / "c"）
+     例： var SPD_CONFIG = { lang: "java" };   （lang は "java" / "thymeleaf" / "python" / "c"）
      ファイルが無ければ読み込み失敗（無視）し、従来どおり既定で起動する。
      <script src> はローカル直開き(file://)・サーバ運用のどちらでも動作する。 -->
 <script src="spd-config.js"></script>
@@ -185,7 +185,7 @@ const C_SYMBOLS = [
   "◇─","└─else","↻─for:","↻─while:",
   "break","continue","◇─switch:","├─case","└─default"
 ];
-/* 罫線記号グループ（2段目の左側に配置）。Java / C は ┬・┴ を右端に追加 */
+/* 罫線記号グループ（2段目の左側に配置）。Java / Thymeleaf / C は ┬・┴ を右端に追加 */
 const LINE_SYMBOLS = ["│","─","└─","├─","┬─"];
 const LINE_SYMBOLS_JAVA = ["│","─","└─","├─","┬─","┬","┴"];
 /* 矢印記号グループ（2段目、罫線グループの右に配置）。
@@ -193,6 +193,9 @@ const LINE_SYMBOLS_JAVA = ["│","─","└─","├─","┬─","┬","┴"];
 const ARROW_SYMBOLS_JAVA   = ["←","─⊳","---⊳"];
 const ARROW_SYMBOLS_PYTHON = ["←","->"];
 const ARROW_SYMBOLS_C      = ["←"];
+/* 言語モード（ラジオの並び順）。thymeleaf のツールバーは当面 java と同じ（Export の囲みだけが異なる） */
+const LANGS = ["java", "thymeleaf", "python", "c"];
+const LANG_NAMES = { java: "Java", thymeleaf: "Thymeleaf", python: "Python", c: "C" };
 let currentLang = "python";
 
 /* current は「直前に使ったツール／現在のモード」を保持する。
@@ -271,7 +274,7 @@ const lnkPattern = document.getElementById("lnkPattern");
 function updateHelpLinks(){
   lnkGuide.href = GUIDE_URL;
   lnkPattern.href = PATTERN_URL[currentLang] || PATTERN_URL.java;
-  const langName = currentLang === "java" ? "Java" : currentLang === "python" ? "Python" : "C";
+  const langName = LANG_NAMES[currentLang] || "Java";
   lnkPattern.title = "SPDの記述パターン（" + langName + "）";
 }
 
@@ -300,8 +303,8 @@ function renderToolbox(){
     else if (id === "__delrow")  { b.textContent = "行-"; b.title = "行削除（現在行を削除して下をシフト）"; }
     else if (id === "__undo")  { b.textContent = "↩"; b.title = "元に戻す (Ctrl+Z)"; b.classList.add("histbtn"); }
     else if (id === "__redo")  { b.textContent = "↪"; b.title = "やり直す (Ctrl+Y)"; b.classList.add("histbtn"); }
-    else if (id === "__copy")  { b.textContent = "Export"; b.title = "SPDをクリップボードへエクスポート（コメント付き・行頭や前後の余白は詰める）。範囲選択中はその部分だけをExport。Shift+クリックでコメント記号なし・余白もそのままExport"; }
-    else if (id === "__paste") { b.textContent = "Import"; b.title = "クリップボードからSPDをインポート。Shift+クリックでカーソル位置に部分Import（既存は消さず矩形を上書き）"; }
+    else if (id === "__copy")  { b.textContent = "Export"; b.title = "SPDをクリップボードへエクスポート（コメント付き・行頭や前後の余白は詰める）。範囲選択中はその部分だけをExport。Shift+クリックでコメント記号なし・余白もそのままExport。Java では Alt+クリックで全行の行頭に「#」を付けてExport（application.properties 用）"; }
+    else if (id === "__paste") { b.textContent = "Import"; b.title = "クリップボードからSPDをインポート（/* */・\"\"\"・<!--/* */--> の囲み記号と、Java では行頭の # を取り除く）。Shift+クリックでカーソル位置に部分Import（既存は消さず矩形を上書き）"; }
     else if (id === "__clear") { b.textContent = "全消去"; b.title = "全消去（グリッド全体を空にする）"; }
     else if (id === "←")    { b.textContent = id; b.title = "代入"; }
     else if (id === "->")   { b.textContent = id; b.title = "型ヒント"; }
@@ -320,7 +323,7 @@ function renderToolbox(){
     b.onclick = (e) => applyTool(id, e);
     return b;
   }
-  const lineSymbols = (currentLang === "java" || currentLang === "c") ? LINE_SYMBOLS_JAVA : LINE_SYMBOLS;
+  const lineSymbols = currentLang === "python" ? LINE_SYMBOLS : LINE_SYMBOLS_JAVA;
   const arrowSymbols = currentLang === "python" ? ARROW_SYMBOLS_PYTHON
                      : currentLang === "c"      ? ARROW_SYMBOLS_C
                      : ARROW_SYMBOLS_JAVA;
@@ -346,9 +349,9 @@ function renderToolbox(){
     toolbox.appendChild(row);
   });
 
-  // 言語切替ラジオ（Java / Python / C）はタイトル行（langbar・左詰め）に配置
+  // 言語切替ラジオ（Java / Thymeleaf / Python / C）はタイトル行（langbar・左詰め）に配置
   langbar.innerHTML = "";
-  ["java", "python", "c"].forEach(lang => {
+  LANGS.forEach(lang => {
     const label = document.createElement("label");
     label.className = "lang-label";
     const radio = document.createElement("input");
@@ -356,7 +359,7 @@ function renderToolbox(){
     radio.checked = (currentLang === lang);
     radio.onchange = () => { currentLang = lang; current = "│"; renderToolbox(); updateInfo(); };
     label.appendChild(radio);
-    const labelText = lang === "java" ? "Java" : lang === "python" ? "Python" : "C";
+    const labelText = LANG_NAMES[lang];
     label.appendChild(document.createTextNode(labelText));
     langbar.appendChild(label);
   });
@@ -376,7 +379,13 @@ function applyTool(id, e){
 
   /* セルコピー・Export は選択範囲を使うので、選択解除より前に処理する */
   if (id === "__cellcopy"){ copyCells(); return; }
-  if (id === "__copy")  { doCopy(e && e.shiftKey); return; }   // 範囲選択時は部分Export／Shift+Export = コメント記号なし
+  if (id === "__copy"){                                        // 範囲選択時は部分Export／Shift+Export = コメント記号なし
+    const alt = !!(e && e.altKey);
+    // Alt+Export = # コメント（Java のみ）。Java 以外の Alt と Shift+Alt は無効（何もしない）
+    if (alt && (currentLang !== "java" || e.shiftKey)) return;
+    doCopy(!!(e && e.shiftKey), alt);
+    return;
+  }
 
   /* ツールを押したら、ドラッグ中の矩形選択を解除する */
   if (current === "__select") cancelSelection();
@@ -1081,12 +1090,16 @@ function buildText(rect, raw){
 /* ===== Export（クリップボードへコピー） =====
    範囲選択があればその矩形だけを出力する（部分Export）。なければ全体。
    plain=true（Shift+Export）ではコメント記号（"""・/*）を付けずに本文だけを出力し、
-   あわせて余白正規化（EI-10）も行わない＝指定範囲をそのまま出力する（転記・ブロック移動用）。 */
-function doCopy(plain){
+   あわせて余白正規化（EI-10）も行わない＝指定範囲をそのまま出力する（転記・ブロック移動用）。
+   props=true（Alt+Export・Java のみ）では全行の行頭に "#  " を付けて出力する（application.properties 用）。
+   ブロックコメント記号では囲まず、空行は "#" だけにする。余白正規化は通常どおり行う。 */
+function doCopy(plain, props){
   const r = selRect();
   const body = r ? buildText({ x1:r.x1, y1:r.y1, x2:r.x2, y2:r.y2 }, plain) : buildText(null, plain);
   const wrapped = plain ? body
-    : currentLang === "python" ? '"""\n' + body + '\n"""'
+    : props ? body.split("\n").map(s => s ? "#  " + s : "#").join("\n")
+    : currentLang === "python"    ? '"""\n' + body + '\n"""'
+    : currentLang === "thymeleaf" ? "<!--/*\n" + body + "\n*/-->"
     : "/*\n" + body + "\n*/";
   navigator.clipboard.writeText(wrapped).catch(() => {});
   if (r){
@@ -1094,10 +1107,12 @@ function doCopy(plain){
     cancelSelection();
     current = "│";
     renderToolbox();
-    infoEl.textContent = "選択範囲を" + (plain ? "コメント記号なしで" : "") + "エクスポートしました ("
-                       + (r.x2-r.x1+1) + "×" + (r.y2-r.y1+1) + ")";
+    infoEl.textContent = "選択範囲を" + (plain ? "コメント記号なしで" : props ? "# コメントで" : "")
+                       + "エクスポートしました (" + (r.x2-r.x1+1) + "×" + (r.y2-r.y1+1) + ")";
   } else if (plain){
     infoEl.textContent = "コメント記号なしでエクスポートしました";
+  } else if (props){
+    infoEl.textContent = "# コメント（application.properties 用）でエクスポートしました";
   }
 }
 
@@ -1158,6 +1173,34 @@ function parseSPDText(text){
      開いているファイルへの編集なのでファイル名表示は残す。
    partial=false：従来どおり全体をクリアして列0・行0から展開する。
      中身が別物になるのでファイル名表示は消す。 */
+// ===== Import 用：コメント記号の除去 =====
+// (1) 囲み記号：空行を除いた最初と最後の行が WRAP_MARKS の組（Java/C・Python・Thymeleaf）なら
+//     その2行（と外側の空行）を取り除く。言語モードに関係なく中身で判定し、行の前後の空白は無視する。
+// (2) 行頭の #（Java モードのみ）：空行以外のすべての行が # で始まるときだけ、
+//     各行の先頭の "#" と直後の半角空白（最大2個）を取り除く（Alt+Export・EI-13 の逆）。
+// 戻り値 { text, stripped }（stripped=何か取り除いたか）
+const WRAP_MARKS = [["/*", "*/"], ['"""', '"""'], ["<!--/*", "*/-->"]];
+function stripCommentMarks(text){
+  let lines = text.split(/\r?\n/);
+  let stripped = false;
+  const isBlank = s => s.trim() === "";
+  let a = 0, b = lines.length - 1;
+  while (a <= b && isBlank(lines[a])) a++;
+  while (b >= a && isBlank(lines[b])) b--;
+  if (a < b && WRAP_MARKS.some(([o, c]) => lines[a].trim() === o && lines[b].trim() === c)){
+    lines = lines.slice(a + 1, b);
+    stripped = true;
+  }
+  if (currentLang === "java"){
+    const body = lines.filter(s => !isBlank(s));
+    if (body.length > 0 && body.every(s => s.startsWith("#"))){
+      lines = lines.map(s => s.replace(/^# {0,2}/, ""));
+      stripped = true;
+    }
+  }
+  return { text: lines.join("\n"), stripped };
+}
+
 function doPaste(partial){
   if (partial && !caret){
     infoEl.textContent = "貼り付け先のマスをクリックしてから Shift+Import してください";
@@ -1165,7 +1208,8 @@ function doPaste(partial){
   }
   navigator.clipboard.readText().then(text => {
     if (!text) return;
-    const { cells, width, height } = parseSPDText(text);
+    const sc = stripCommentMarks(text);   // 囲み記号・行頭の # を取り除く（EI-14）
+    const { cells, width, height } = parseSPDText(sc.text);
     saveHistory();
     if (partial){
       const ox = caret.x, oy = caret.y;
@@ -1192,6 +1236,7 @@ function doPaste(partial){
     refreshAll();
     renderToolbox();
     updateInfo();
+    if (sc.stripped) infoEl.textContent = "コメント記号を取り除いてインポートしました";
   }).catch(() => {});
 }
 
@@ -1610,7 +1655,7 @@ function clearAll(){
 /* 初期化 */
 // 設定ファイル（spd-config.js）があれば言語モードを反映（無ければ既定 python のまま）
 if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
-    && ["java", "python", "c"].includes(SPD_CONFIG.lang)){
+    && LANGS.includes(SPD_CONFIG.lang)){
   currentLang = SPD_CONFIG.lang;
 }
 renderToolbox();
