@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.15.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.16.0</span></h1>
   </div>
 </div>
 
@@ -165,7 +165,7 @@ const LINE_UP   = new Set(["└","┘","├","┤","┴","┼","│","◇","〇"
 const LINE_UP_CONNECT = new Set(["└","┘","├","┤","┴","┼","│"]);
 const autoSet = {};
 /* テキストランの境界となる罫線・制御記号セット */
-const SPD_BORDER = new Set(["│","├","└","┌","┐","┘","┤","┼","─","◇","〇","↻","←","→","┬","┴","▽"]);
+const SPD_BORDER = new Set(["│","├","└","┌","┐","┘","┤","┼","─","◇","〇","↻","←","→","⇒","┬","┴","▽"]);
 
 /* ===== ツール定義 ===== */
 /* 罫線（─）の直後には空白を置かない方針のため、シンボルも ─ とラベルを詰めて定義する
@@ -189,8 +189,8 @@ const C_SYMBOLS = [
 const LINE_SYMBOLS = ["│","─","└─","├─","┬─"];
 const LINE_SYMBOLS_JAVA = ["│","─","└─","├─","┬─","┬","┴"];
 /* 矢印記号グループ（2段目、罫線グループの右に配置）。
-   Java は 継承 ─⊳・実装 ---⊳ を含む。C は 代入 ← のみ（継承・実装は除外） */
-const ARROW_SYMBOLS_JAVA   = ["←","─⊳","---⊳"];
+   Java は 送る →・入力 ⇒ と 継承 ─⊳・実装 ---⊳ を含む。C は 代入 ← のみ（継承・実装は除外） */
+const ARROW_SYMBOLS_JAVA   = ["←","→","⇒","─⊳","---⊳"];
 const ARROW_SYMBOLS_PYTHON = ["←","->"];
 const ARROW_SYMBOLS_C      = ["←"];
 /* 言語モード（ラジオの並び順）。thymeleaf のツールバーは当面 java と同じ（Export の囲みだけが異なる） */
@@ -307,6 +307,8 @@ function renderToolbox(){
     else if (id === "__paste") { b.textContent = "Import"; b.title = "クリップボードからSPDをインポート（/* */・\"\"\"・<!--/* */--> の囲み記号と、Java では行頭の # を取り除く）。Shift+クリックでカーソル位置に部分Import（既存は消さず矩形を上書き）"; }
     else if (id === "__clear") { b.textContent = "全消去"; b.title = "全消去（グリッド全体を空にする）"; }
     else if (id === "←")    { b.textContent = id; b.title = "代入"; }
+    else if (id === "→")    { b.textContent = id; b.title = "送る"; }
+    else if (id === "⇒")    { b.textContent = id; b.title = "入力"; }
     else if (id === "->")   { b.textContent = id; b.title = "型ヒント"; }
     else if (id === "─⊳")   { b.textContent = id; b.title = "継承"; }
     else if (id === "---⊳") { b.textContent = id; b.title = "実装"; }
