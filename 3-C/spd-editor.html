@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.16.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.17.0</span></h1>
   </div>
 </div>
 
@@ -609,11 +609,15 @@ function advance(){
   caret.x++; caret.slot = 0;
   if (caret.x >= COLS){ caret.x = anchorX; caret.y++; }
 }
-function writeChar(ch){
+/* 罫線 ─ の直後（左隣が ─・slot0）に来る空白（半角・全角）は置かない＝ラベルを ─ に詰める（TX-19） */
+function isDroppedSpace(ch){
+  return (ch === " " || ch === "　") && !!caret && caret.slot === 0 && data[key(caret.x - 1, caret.y)] === "─";
+}
+/* pad=true はパディング空白（TX-21）。TX-19 の対象外として必ず書き込む */
+function writeChar(ch, pad){
   if (!caret || ch === "\n" || ch === "\r") return;
   if (caret.y >= ROWS) return;
-  // 罫線 ─ の直後（左隣が ─）に来る空白（半角・全角）は置かない＝ラベルを ─ に詰める
-  if ((ch === " " || ch === "　") && caret.slot === 0 && data[key(caret.x - 1, caret.y)] === "─") return;
+  if (!pad && isDroppedSpace(ch)) return;
   const k = key(caret.x, caret.y);
   if (isHalf(ch)){
     const cur = (data[k] && data[k].length === 2) ? data[k] : "  ";
@@ -629,32 +633,57 @@ function writeChar(ch){
 }
 function flush(text){
   if (!text) return;
-  const chars = [...expandTabs(text)];
-  let dqCount = 0, sqCount = 0;
-  for (let i = 0; i < chars.length; i++){
-    const ch = chars[i];
-    if (!caret || caret.y >= ROWS) break;
-    // " ' が slot=0 に単独で入る場合（次が全角または末尾）→ 開始/終了を奇偶で判定
-    if ((ch === '"' || ch === "'") && caret.slot === 0){
-      const nextCh = chars[i + 1];
-      if (!nextCh || !isHalf(nextCh)){
-        const cnt = ch === '"' ? dqCount : sqCount;
-        if (ch === '"') dqCount++; else sqCount++;
-        if (cnt % 2 === 0){
-          writeChar(' ');  // 開始引用符 → 右寄せ（スペース→slot 0、引用符→slot 1）
-          writeChar(ch);
-        } else {
-          writeChar(ch);   // 終了引用符 → 左寄せ（通常）
-        }
-        continue;
-      }
-    }
-    if (ch === '"') dqCount++;
-    else if (ch === "'") sqCount++;
-    writeChar(ch);
-  }
+  writeText([...expandTabs(text)], writeChar, (x, y) => x < COLS ? data[key(x, y)] : undefined);
   refreshAll();
   moveCaret();
+}
+
+/* ===== 半角ランのパディング位置（TX-21・v1.17.0） =====
+   半角は2文字で1マスに詰めるため、半角が奇数個続く並び（半角ラン）には
+   半角空白1個のパディングが必ず入る。その位置を前後のマスで決める：
+     ・前後の一方だけが空き側（空マス・空白・罫線記号・行端）なら、空き側に置く。
+       全角文字に接する側には置かない（.青 → " .青"／"あいう" → ' "あいう"'。
+       クラス名や文字列の中に空白を入れない）
+     ・前後とも空き → 末尾（従来どおりの左詰め）
+     ・前後とも全角文字 → 末尾。ただし先頭が開始引用符なら先頭
+     ・引用符1文字だけのランは従来どおり奇偶判定（TX-11：開始=先頭、終了=末尾）
+   文字入力（flush）・テキストラン編集（applyTextRunEdit）・Import（parseSPDText）が
+   同じ判定を使い、テキストランの取り出し（extractTextRun）はその逆でパディングを除く。 */
+const isOpenSide = v => !v || /^[\s　]+$/.test(v) || SPD_BORDER.has(v);
+/* run：奇数長の半角ラン、leftV / rightV：前後のマス（文字）、opening：run[0] が開始引用符か。
+   true なら先頭（左）にパディングを置く */
+function padAtHead(run, leftV, rightV, opening){
+  if (run.length === 1 && isQuote(run)) return opening;
+  const lo = isOpenSide(leftV), ro = isOpenSide(rightV);
+  if (lo !== ro) return lo;
+  return !lo && isQuote(run[0]) && opening;
+}
+/* 文字列をカーソル位置から書き込む（flush・applyTextRunEdit 共通）。
+   put(ch, pad) は1文字の書き込み関数、rightOf(x, y) は入力末尾の右隣マスの内容を返す。
+   半角ランの書き始め（slot0）で長さが奇数なら、padAtHead() に従い先頭へパディングを置く。 */
+function writeText(chars, put, rightOf){
+  let dq = 0, sq = 0;          // 入力内の " ' の出現回数（開始/終了の奇偶判定・TX-11）
+  let prevHalf = false;        // 直前に書いたのが半角か（＝半角ランの途中か）
+  for (let i = 0; i < chars.length; i++){
+    if (!caret) break;
+    const ch = chars[i];
+    if (ch === "\n" || ch === "\r") continue;
+    const half = isHalf(ch);
+    const dropped = isDroppedSpace(ch);
+    if (half && !prevHalf && !dropped && caret.slot === 0){
+      let j = i;
+      while (j < chars.length && isHalf(chars[j]) && chars[j] !== "\n" && chars[j] !== "\r") j++;
+      const run = chars.slice(i, j).join("");
+      if (run.length % 2 === 1){
+        const rightV = j < chars.length ? chars[j] : rightOf(caret.x + (run.length + 1) / 2, caret.y);
+        const opening = isQuote(ch) && (ch === '"' ? dq : sq) % 2 === 0;
+        if (padAtHead(run, data[key(caret.x - 1, caret.y)], rightV, opening)) put(" ", true);
+      }
+    }
+    if (ch === '"') dq++; else if (ch === "'") sq++;
+    put(ch, false);
+    if (!dropped) prevHalf = half;
+  }
 }
 
 /* ===== 矩形選択 ===== */
@@ -901,29 +930,40 @@ function findTextRunAt(x, y){
 /* テキストランのセル内容を文字列として取り出す（パディングスペース除去） */
 function extractTextRun({ startX, endX, y }){
   let text = "";
-  for (let x = startX; x <= endX; x++){
+  for (let x = startX; x <= endX; ){
     const v = data[key(x, y)];
-    if (!v){ text += "　"; continue; }  // 空マス（INS挿入ギャップ）→ 全角スペースとして取り出す
-    if (v.length === 1){ text += v; continue; }
-    // 半角ペア。中間マスは両スロットとも実文字。
-    // パディング空白は最終マス(x===endX)の右スロットにのみ発生する。
-    if (v[0] === " " && (v[1] === '"' || v[1] === "'")){
-      text += v[1];          // 右寄せ開始引用符 → 前置スペースを除去
-    } else if (x === endX && v[1] === " "){
-      text += v[0];          // 最終マスの右スロット空白＝パディング → 除去
-    } else {
-      text += v;             // それ以外は両スロットとも実文字
-    }
+    if (!v){ text += "　"; x++; continue; }  // 空マス（INS挿入ギャップ）→ 全角スペースとして取り出す
+    if (v.length === 1){ text += v; x++; continue; }
+    // 半角マスの連続（半角ラン）をまとめて取り出す。中間マスは両スロットとも実文字で、
+    // パディング空白（TX-21）はランの先頭か末尾にだけある
+    const x0 = x;
+    let s = "";
+    while (x <= endX && data[key(x, y)] && data[key(x, y)].length === 2){ s += data[key(x, y)]; x++; }
+    text += unpadHalfRun(s, data[key(x0 - 1, y)], data[key(x, y)], text);
   }
   return text;
 }
+/* 半角ラン s（偶数長）からパディング空白を除く。padAtHead() で書き戻したときに
+   同じ並びになる場合だけ、先頭／末尾の空白をパディングとみなして取り除く。
+   before はここまでに取り出した文字列（引用符の奇偶判定用） */
+function unpadHalfRun(s, leftV, rightV, before){
+  const opening = c => isQuote(c) && [...before].filter(b => b === c).length % 2 === 0;
+  if (s[0] === " "){
+    const r = s.slice(1);
+    if (padAtHead(r, leftV, rightV, opening(r[0]))) return r;   // 先頭パディング → 除去
+  }
+  if (s[s.length - 1] === " "){
+    const r = s.slice(0, -1);
+    if (!padAtHead(r, leftV, rightV, opening(r[0]))) return r;  // 末尾パディング → 除去
+  }
+  return s;                  // パディングなし（両スロットとも実文字）
+}
 
 /* writeChar の行折り返しなし版（テキストラン書き込み専用） */
-function writeCharNoWrap(ch, row){
+function writeCharNoWrap(ch, row, pad){
   if (!caret || caret.y !== row || caret.x >= COLS) return;
   if (ch === "\n" || ch === "\r") return;
-  // 罫線 ─ の直後（左隣が ─）に来る空白（半角・全角）は置かない＝ラベルを ─ に詰める
-  if ((ch === " " || ch === "　") && caret.slot === 0 && data[key(caret.x - 1, caret.y)] === "─") return;
+  if (!pad && isDroppedSpace(ch)) return;   // 罫線直後の空白は置かない（TX-19）
   const k = key(caret.x, caret.y);
   if (isHalf(ch)){
     const cur = (data[k] && data[k].length === 2) ? data[k] : "  ";
@@ -955,28 +995,8 @@ function applyTextRunEdit(newText, { startX, endX, y }){
   // キャレットを startX へ移動して新テキストを書き込む（行外へ折り返さない）
   setCaret(startX, y, 0);
   anchorX = startX;
-  if (newText){
-    const chars = [...expandTabs(newText)];
-    let dqCount = 0, sqCount = 0;
-    for (let i = 0; i < chars.length; i++){
-      if (!caret || caret.y !== y || caret.x >= COLS) break;
-      const ch = chars[i];
-      if (ch === "\n" || ch === "\r") continue;
-      if ((ch === '"' || ch === "'") && caret.slot === 0){
-        const nextCh = chars[i + 1];
-        if (!nextCh || !isHalf(nextCh)){
-          const cnt = ch === '"' ? dqCount : sqCount;
-          if (ch === '"') dqCount++; else sqCount++;
-          if (cnt % 2 === 0){ writeCharNoWrap(' ', y); writeCharNoWrap(ch, y); }
-          else { writeCharNoWrap(ch, y); }
-          continue;
-        }
-      }
-      if (ch === '"') dqCount++;
-      else if (ch === "'") sqCount++;
-      writeCharNoWrap(ch, y);
-    }
-  }
+  // 入力末尾の右隣は tail の先頭（パディング位置の判定・TX-21）
+  if (newText) writeText([...expandTabs(newText)], (c, pad) => writeCharNoWrap(c, y, pad), () => tail[0]);
   // tail を新テキストの直後から詰めて配置
   const tailX = (caret && caret.y === y)
     ? (caret.slot === 1 ? caret.x + 1 : caret.x)
@@ -1130,38 +1150,45 @@ function parseSPDText(text){
     let x = 0, i = 0;
     let dqCount = 0, sqCount = 0;  // 行ごとに " ' の出現回数をカウント
     let inIndent = true;          // インデント領域判定（│ と半角空白で構成。半角空白2個＝空マス）
+    let prevHalf = false;         // 直前のセルが半角か（＝半角ランの途中か）
+    let leftV;                    // 直前のセルの内容（空セルは undefined。パディング位置の判定用・TX-21）
+    const countQuote = c => { if (c === '"') dqCount++; else if (c === "'") sqCount++; };
     while (i < line.length && x < COLS){
       const ch = line[i];
+      const next = line[i+1];
       if (ch === "　"){           // 全角空白＝空セル
-        x++; i++;
-      } else if (inIndent && ch === " "){  // インデントの半角空白：2個で1マス分の空セル（格納しない）
-        x++; i += (line[i+1] === " ") ? 2 : 1;
+        x++; i++; prevHalf = false; leftV = undefined;
+      } else if (inIndent && ch === " " && (next === " " || !isHalf(next))){
+        // インデントの半角空白：2個で1マス分の空セル（格納しない）。
+        // 奇数個の最後の1個の直後に半角文字が続くときは、先頭パディング（" ." など・TX-21）
+        // として半角ランの側で読む
+        x++; i += (next === " ") ? 2 : 1; prevHalf = false; leftV = undefined;
       } else if (isHalf(ch)){         // ASCII → 半角2文字で1セル
         inIndent = false;
-        const next = line[i+1];
-        if (next !== undefined && isHalf(next)){
-          // ペア：両文字の引用符カウントを更新して通常格納
-          if (ch   === '"') dqCount++; else if (ch   === "'") sqCount++;
-          if (next === '"') dqCount++; else if (next === "'") sqCount++;
-          cells.push({ x, y, v: ch + next });
-          x++; i += 2;
-        } else {
-          // 単独半角文字：" ' のみ開始/終了を奇偶で判定して寄せ方を決める
-          let stored;
-          if (ch === '"' || ch === "'"){
-            const cnt = ch === '"' ? dqCount : sqCount;
-            if (ch === '"') dqCount++; else sqCount++;
-            stored = (cnt % 2 === 0) ? " " + ch : ch + " ";  // 偶数=開始→右寄せ、奇数=終了→左寄せ
-          } else {
-            stored = ch + " ";  // その他は左寄せ
+        // 半角ランの先頭で長さが奇数なら、パディングの位置を前後のセルで決める（TX-21）
+        let headPad = false;
+        if (!prevHalf){
+          let j = i;
+          while (j < line.length && isHalf(line[j])) j++;
+          if ((j - i) % 2 === 1){
+            const opening = isQuote(ch) && (ch === '"' ? dqCount : sqCount) % 2 === 0;
+            headPad = padAtHead(line.slice(i, j), leftV, line[j], opening);
           }
-          cells.push({ x, y, v: stored });
-          x++; i++;
         }
+        let v;
+        if (headPad){
+          v = " " + ch; countQuote(ch); i++;           // 先頭パディング
+        } else if (next !== undefined && isHalf(next)){
+          v = ch + next; countQuote(ch); countQuote(next); i += 2;   // ペア
+        } else {
+          v = ch + " "; countQuote(ch); i++;           // 末尾パディング
+        }
+        cells.push({ x, y, v });
+        x++; prevHalf = true; leftV = v;
       } else {                        // 全角文字＝1セル
         if (ch !== "│") inIndent = false;  // │ はインデント継続、それ以外で終了
         cells.push({ x, y, v: ch });
-        x++; i++;
+        x++; i++; prevHalf = false; leftV = ch;
       }
       if (x > width) width = x;
     }
