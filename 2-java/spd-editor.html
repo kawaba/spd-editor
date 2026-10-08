@@ -95,7 +95,7 @@
   <div class="titleright">
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.17.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.17.1</span></h1>
   </div>
 </div>
 
@@ -645,18 +645,21 @@ function flush(text){
        全角文字に接する側には置かない（.青 → " .青"／"あいう" → ' "あいう"'。
        クラス名や文字列の中に空白を入れない）
      ・前後とも空き → 末尾（従来どおりの左詰め）
-     ・前後とも全角文字 → 末尾。ただし先頭が開始引用符なら先頭
+     ・前後とも全角文字 → 末尾。ただし先頭が右側の語に付く記号（HEAD_PAD_CHARS）か開始引用符なら先頭
      ・引用符1文字だけのランは従来どおり奇偶判定（TX-11：開始=先頭、終了=末尾）
    文字入力（flush）・テキストラン編集（applyTextRunEdit）・Import（parseSPDText）が
    同じ判定を使い、テキストランの取り出し（extractTextRun）はその逆でパディングを除く。 */
 const isOpenSide = v => !v || /^[\s　]+$/.test(v) || SPD_BORDER.has(v);
+/* 右側の語に付く記号（TX-21・v1.17.1）。前後とも全角文字に挟まれた半角ランがこれで始まるときは、
+   パディングを先頭に置いて記号を右の語に付ける（例：［.青色］ → ［ .青色］。CSS のクラス名） */
+const HEAD_PAD_CHARS = new Set([".", "{", "$", "#", "~", "%", "!", "&", "(", "[", "<", "@"]);
 /* run：奇数長の半角ラン、leftV / rightV：前後のマス（文字）、opening：run[0] が開始引用符か。
    true なら先頭（左）にパディングを置く */
 function padAtHead(run, leftV, rightV, opening){
   if (run.length === 1 && isQuote(run)) return opening;
   const lo = isOpenSide(leftV), ro = isOpenSide(rightV);
   if (lo !== ro) return lo;
-  return !lo && isQuote(run[0]) && opening;
+  return !lo && (HEAD_PAD_CHARS.has(run[0]) || (isQuote(run[0]) && opening));
 }
 /* 文字列をカーソル位置から書き込む（flush・applyTextRunEdit 共通）。
    put(ch, pad) は1文字の書き込み関数、rightOf(x, y) は入力末尾の右隣マスの内容を返す。
