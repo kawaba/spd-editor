@@ -27,6 +27,13 @@
     font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",var(--mono);
   }
   .helplink:hover{ background:var(--accent-bg); }
+  /* スケルトン選択（タイトル行・📖 の左・v1.18.0）。spd-patterns.js が無ければ非表示 */
+  select.skeleton{
+    font-family:var(--mono); font-size:12px; height:28px; padding:0 6px;
+    background:#fff; color:var(--text);
+    border:1px solid var(--line-strong); border-radius:6px; cursor:pointer;
+  }
+  select.skeleton:hover{ background:var(--accent-bg); }
   /* 言語選択ラジオ と ファイル名表示 を 20px あけて横並びにする */
   .titleleft{ display:flex; align-items:center; gap:20px; }
   .filename{ font-size:12px; color:var(--text-dim); white-space:nowrap; }
@@ -93,9 +100,10 @@
     <span class="filename" id="filename"></span>
   </div>
   <div class="titleright">
+    <select class="skeleton" id="skeleton" title="スケルトン（決まった枝のひな形）をカーソル位置へ貼り付け" hidden></select>
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.17.1</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.18.0</span></h1>
   </div>
 </div>
 
@@ -119,6 +127,16 @@
      ファイルが無ければ読み込み失敗（無視）し、従来どおり既定で起動する。
      <script src> はローカル直開き(file://)・サーバ運用のどちらでも動作する。 -->
 <script src="spd-config.js"></script>
+<!-- スケルトン定義（任意・v1.18.0）。同フォルダに spd-patterns.js があれば読み込み、
+     タイトル行のセレクトボックスに並べる。書式は ★タイトル 行で区切った SPD テキスト：
+       var SPD_PATTERNS = `
+       ★コントローラー
+       コントローラー：□□
+       ├─目的：□□
+       …
+       `;
+     ファイルが無ければ読み込み失敗（無視）し、セレクトボックスを表示しない。 -->
+<script src="spd-patterns.js"></script>
 
 <script>
 /* ===== 設定 ===== */
@@ -1233,6 +1251,20 @@ function stripCommentMarks(text){
   return { text: lines.join("\n"), stripped };
 }
 
+/* ブロック貼り付け：(ox,oy) を左上として width×height の矩形を一旦クリアし、cells を書き込む
+   （コピー元の空マスもそのまま反映。グリッド範囲外ははみ出し切り捨て）。部分Import・スケルトン共通 */
+function pasteBlock(cells, width, height, ox, oy){
+  for (let dy = 0; dy < height; dy++)
+    for (let dx = 0; dx < width; dx++){
+      const tx = ox + dx, ty = oy + dy;
+      if (tx < COLS && ty < ROWS) delete data[key(tx, ty)];
+    }
+  for (const { x, y, v } of cells){
+    const tx = ox + x, ty = oy + y;
+    if (tx < COLS && ty < ROWS) data[key(tx, ty)] = v;
+  }
+}
+
 function doPaste(partial){
   if (partial && !caret){
     infoEl.textContent = "貼り付け先のマスをクリックしてから Shift+Import してください";
@@ -1244,17 +1276,7 @@ function doPaste(partial){
     const { cells, width, height } = parseSPDText(sc.text);
     saveHistory();
     if (partial){
-      const ox = caret.x, oy = caret.y;
-      // ブロック貼り付け：貼り付け矩形を一旦クリア（元の空白もそのまま反映）
-      for (let dy = 0; dy < height; dy++)
-        for (let dx = 0; dx < width; dx++){
-          const tx = ox + dx, ty = oy + dy;
-          if (tx < COLS && ty < ROWS) delete data[key(tx, ty)];
-        }
-      for (const { x, y, v } of cells){
-        const tx = ox + x, ty = oy + y;
-        if (tx < COLS && ty < ROWS) data[key(tx, ty)] = v;
-      }
+      pasteBlock(cells, width, height, caret.x, caret.y);   // ブロック貼り付け
     } else {
       for (const k in data) delete data[k];
       cancelSelection();
@@ -1270,6 +1292,75 @@ function doPaste(partial){
     updateInfo();
     if (sc.stripped) infoEl.textContent = "コメント記号を取り除いてインポートしました";
   }).catch(() => {});
+}
+
+/* ===== スケルトン（SK-01〜05・v1.18.0） =====
+   spd-patterns.js の SPD_PATTERNS（★タイトル 行で区切った SPD テキスト）を読み、
+   タイトル行のセレクトボックスから選ぶと、カーソル位置を左上として部分Import と同じ
+   ブロック貼り付けを行う。貼り付け先の内容は確認なしで上書きする（アンドゥで戻せる）。 */
+const skeletonEl = document.getElementById("skeleton");
+let skeletons = [];                   // [{ title, body }]
+
+/* ★ で始まる行をタイトル、次の ★ までを本文とする。最初の ★ より前の行は無視（説明用）。
+   本文の前後の空行は除き、途中の空行は残す。本文が空のものは捨てる。 */
+function parseSkeletons(src){
+  const list = [];
+  let cur = null;
+  for (const line of String(src).split(/\r?\n/)){
+    const t = line.trim();
+    if (t.startsWith("★")){
+      cur = { title: t.slice(1).trim(), lines: [] };
+      list.push(cur);
+    } else if (cur){
+      cur.lines.push(line);
+    }
+  }
+  const blank = s => /^[\s　]*$/.test(s);
+  return list.map(({ title, lines }) => {
+    let a = 0, b = lines.length;
+    while (a < b && blank(lines[a])) a++;
+    while (b > a && blank(lines[b - 1])) b--;
+    return { title, body: lines.slice(a, b).join("\n") };
+  }).filter(p => p.title && p.body);
+}
+
+function initSkeletons(){
+  if (typeof SPD_PATTERNS === "undefined" || !SPD_PATTERNS) return;
+  skeletons = parseSkeletons(SPD_PATTERNS);
+  if (skeletons.length === 0) return;
+  const head = document.createElement("option");
+  head.value = ""; head.textContent = "スケルトン…";
+  skeletonEl.appendChild(head);
+  skeletons.forEach((p, i) => {
+    const o = document.createElement("option");
+    o.value = String(i); o.textContent = p.title;
+    skeletonEl.appendChild(o);
+  });
+  skeletonEl.hidden = false;
+  skeletonEl.addEventListener("change", () => {
+    const i = skeletonEl.value;
+    skeletonEl.value = "";            // 見出しへ戻す（同じスケルトンを続けて選べるように）
+    skeletonEl.blur();                // 矢印キー等をグリッド操作へ戻す
+    if (i !== "") insertSkeleton(Number(i));
+  });
+}
+
+function insertSkeleton(i){
+  const p = skeletons[i];
+  if (!p) return;
+  if (current === "__select") cancelSelection();
+  textRunInfo = null;
+  if (!caret){
+    infoEl.textContent = "貼り付け先のマスをクリックしてからスケルトンを選んでください";
+    return;
+  }
+  const { cells, width, height } = parseSPDText(p.body);
+  saveHistory();
+  pasteBlock(cells, width, height, caret.x, caret.y);
+  refreshAll();
+  renderToolbox();
+  updateInfo();
+  infoEl.textContent = "スケルトン「" + p.title + "」を貼り付けました";
 }
 
 /* ===== 保存／開く =====
@@ -1692,6 +1783,7 @@ if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
 }
 renderToolbox();
 updateInfo();
+initSkeletons();       // spd-patterns.js があればスケルトン選択を表示（SK-01）
 startAutosave();
 </script>
 </body>
