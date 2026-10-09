@@ -103,7 +103,7 @@
     <select class="skeleton" id="skeleton" title="スケルトン（決まった枝のひな形）をカーソル位置へ貼り付け" hidden></select>
     <a class="helplink" id="lnkGuide" href="#" target="_blank" rel="noopener noreferrer" title="SPDの解説・書き方">&#x1F4D6;</a>
     <a class="helplink" id="lnkPattern" href="#" target="_blank" rel="noopener noreferrer" title="SPDの記述パターン">&#x1F4A1;</a>
-    <h1>SPD Editor<span class="ver">ver. 1.18.0</span></h1>
+    <h1>SPD Editor<span class="ver">ver. 1.19.0</span></h1>
   </div>
 </div>
 
@@ -139,6 +139,15 @@
 <script src="spd-patterns.js"></script>
 
 <script>
+/* ===== 実行環境 =====
+   Eclipse プラグイン（kawaba/eclipse-spd-plugin の SpdBrowser.java）から開かれたか。Java 側は URL に ?host=eclipse を付ける。
+   念のため Java の BrowserFunction が登録済みかどうかでも判定する。 */
+const IN_ECLIPSE = /[?&]host=eclipse(&|$)/.test(location.search)
+                || typeof window.spdGetInitialText === "function";
+/* Eclipse 内での画面の種類。"editor"＝.spd ファイルのエディタ（保存＝上書き）、
+   "view"＝ファイルなしで使うビュー（保存＝名前を付けて .spd に保存） */
+const ECLIPSE_MODE = (location.search.match(/[?&]mode=(\w+)/) || [])[1] || "editor";
+
 /* ===== 設定 ===== */
 const COLS = 90, ROWS = 500, CELLW = 18, CELLH = 22, FONT = 16, RNUMW = 34;
 
@@ -364,7 +373,15 @@ function renderToolbox(){
       loadB.className = "act"; loadB.textContent = "開く"; loadB.title = "JSON ファイルを読み込み";
       loadB.onclick = doLoad;
       row.appendChild(saveB);
-      row.appendChild(loadB);
+      // Eclipse 内では「保存」は Eclipse の保存（Ctrl+S と同じ）。ファイルは Eclipse 側で開くので「開く」は出さない
+      if (IN_ECLIPSE && ECLIPSE_MODE === "view"){
+        saveB.textContent = "保存…";
+        saveB.title = "名前を付けて .spd ファイルに保存 (Ctrl+S)。保存しなくても内容は Eclipse に保管されます";
+      } else if (IN_ECLIPSE){
+        saveB.title = "Eclipse でファイルへ保存 (Ctrl+S)";
+      } else {
+        row.appendChild(loadB);
+      }
     }
     toolbox.appendChild(row);
   });
@@ -1396,6 +1413,7 @@ function currentJSON(){
 
 /* ===== 保存 =====（段3の「保存」ボタンから呼ぶ） */
 async function doSave(){
+  if (IN_ECLIPSE){ requestEclipseSave(); return; }    // Eclipse 内では Eclipse の保存に任せる
   const json = currentJSON();
   if (!useLegacyPicker && window.showSaveFilePicker){
     try {
@@ -1775,6 +1793,80 @@ function clearAll(){
   updateInfo();
 }
 
+/* ===== Eclipse 連携（約束事は eclipse-spd-plugin の CLAUDE.md を参照。変更するときは SpdBrowser.java も同時に直す） =====
+   Java → JS : loadSpd(text) ／ getSpdText()
+   JS → Java : spdGetInitialText() ／ spdNotifyChanged() ／ spdRequestSave()
+   .spd ファイルの中身は「保存」ボタンと同じ JSON（{ lang, data }）。
+   Java 側関数は存在チェックしてから呼ぶ（単体のブラウザでもそのまま動くように）。 */
+function setupEclipseBridge(){
+  /* 変更検知：操作のたびに内容（言語を含む）を比べ、変わっていれば Java へ通知する。
+     Import はクリップボード読み取りが非同期なので、取りこぼし対策に定期チェックも併用する。 */
+  const check = () => {
+    if (eclipseLastState === null) return;            // 読み込み前・読み込み中は通知しない
+    const state = editState();
+    if (state === eclipseLastState) return;
+    eclipseLastState = state;
+    if (typeof window.spdNotifyChanged === "function") window.spdNotifyChanged();
+  };
+  const later = () => setTimeout(check, 0);           // イベント処理（編集）が終わってから比べる
+  ["click", "mouseup", "keyup", "change", "input"].forEach(t =>
+    document.addEventListener(t, later, true));
+  setInterval(check, 1000);
+
+  /* Ctrl+S（入力欄にフォーカスがあっても）→ Eclipse の保存 */
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s"){
+      e.preventDefault();
+      e.stopPropagation();
+      requestEclipseSave();
+    }
+  }, true);
+}
+let eclipseLastState = null;          // 最後に読み込んだ／保存用に渡した／通知した時点の内容
+
+function requestEclipseSave(){
+  if (typeof window.spdRequestSave === "function") window.spdRequestSave();
+}
+
+/* Java → JS：ファイル内容を画面に読み込む。読み込み中は変更通知を出さない。
+   空ファイル（新規作成直後）は空のグリッドで開き、言語は spd-config.js の既定のまま。
+   JSON でなければ SPD テキスト（Export した形式）とみなしてインポートする。 */
+function loadSpd(text){
+  eclipseLastState = null;
+  const src = text == null ? "" : String(text);
+  for (const k in data) delete data[k];
+  undoStack.length = 0;
+  redoStack.length = 0;
+  cancelSelection();
+  clearCaret();
+  textRunInfo = null;
+  current = "│";
+  try {
+    if (/^\s*\{/.test(src)){
+      const obj = JSON.parse(src);
+      if (obj.data) Object.assign(data, obj.data);
+      if (obj.lang && LANGS.includes(obj.lang)) currentLang = obj.lang;
+    } else if (src.trim()){
+      const { cells } = parseSPDText(stripCommentMarks(src).text);
+      for (const { x, y, v } of cells){
+        if (x < COLS && y < ROWS) data[key(x, y)] = v;
+      }
+    }
+  } catch(err){
+    alert("SPD ファイルの読み込みに失敗しました（JSON の形式が正しくありません）");
+  }
+  refreshAll();
+  renderToolbox();
+  updateInfo();
+  eclipseLastState = editState();
+}
+
+/* Java → JS：保存用に現在の内容を JSON 文字列で返す */
+function getSpdText(){
+  eclipseLastState = editState();     // 保存後の編集で再び変更通知が出るよう基準を更新する
+  return currentJSON();
+}
+
 /* 初期化 */
 // 設定ファイル（spd-config.js）があれば言語モードを反映（無ければ既定 python のまま）
 if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
@@ -1784,7 +1876,11 @@ if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
 renderToolbox();
 updateInfo();
 initSkeletons();       // spd-patterns.js があればスケルトン選択を表示（SK-01）
-startAutosave();
+if (IN_ECLIPSE){
+  setupEclipseBridge();  // 保存・ダーティ管理は Eclipse が行うので、自動保存と離脱確認は使わない
+} else {
+  startAutosave();
+}
 </script>
 </body>
 </html>

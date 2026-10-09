@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.18.0 |
+| バージョン | 1.19.0 |
 | 作成日 | 2026-06-28 |
 | 対象ファイル | `spd-editor.html` |
 | 状態 | 開発中 |
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [Java○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.18.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [Java○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.19.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -620,6 +620,21 @@ var SPD_PATTERNS = `
 `;
 ```
 
+### 6.13 Eclipse 連携（v1.19.0）
+
+同じ `spd-editor.html` を Eclipse プラグイン（GitHub `kawaba/eclipse-spd-plugin`）の画面としても使う。プラグインは Eclipse の Browser（Windows は Edge / WebView2）で `web/editor.html?host=eclipse&mode=editor|view` を開き、ファイルの読み書き・保存・未保存表示は Eclipse 側が受け持つ。**単体のブラウザで開いたときは何もしない**（従来どおり動く）。プラグイン側の `web/editor.html` は、このリポジトリの `spd-editor.html` をスクリプトで複製したもので、内容は同一。
+
+| No. | 機能 | 仕様 | 状態 |
+|-----|------|------|------|
+| EC-01 | Eclipse 内の判定 | URL に `host=eclipse` があるか、Java の関数 `spdGetInitialText` が登録されていれば Eclipse 内とみなす（`IN_ECLIPSE`）。画面の種類は `mode`（`ECLIPSE_MODE`）。`editor`＝`.spd` ファイルのエディタ（既定）、`view`＝ファイルなしで使うビュー | ✅ |
+| EC-02 | 保存ボタン | Eclipse 内では「保存」（`doSave()`）と `Ctrl+S`（入力欄にフォーカスがあっても）を Eclipse の保存（`spdRequestSave()`）に回す。`mode=view` ではボタンを「保存…」と表示し、名前を付けて `.spd` に保存する（ビューの内容は保存しなくても Eclipse に保管される）。ファイルは Eclipse 側で開くので「開く」ボタンは出さない | ✅ |
+| EC-03 | 自動保存・離脱確認の無効化 | Eclipse 内では自動保存（SL-06・07・09）と離脱確認（SL-08）を使わない（`startAutosave()` を呼ばない）。保存とダーティ管理は Eclipse が行う | ✅ |
+| EC-04 | 読み込み | Java から `loadSpd(text)` を呼ぶと、内容を画面に読み込む。履歴・選択・カーソルは消す。JSON（§3.5 と同じ `{ lang, data }`）ならそのまま、空文字（新規ファイル）なら空のグリッド（言語は `spd-config.js` の既定）、それ以外は SPD テキスト（Export した形式）とみなして Import と同じ規則（`stripCommentMarks`・`parseSPDText`）で読み込む。読み込み中は変更通知を出さない | ✅ |
+| EC-05 | 保存用の内容 | Java から `getSpdText()` を呼ぶと、「保存」と同じ JSON 文字列を返す | ✅ |
+| EC-06 | 変更通知 | 内容（言語を含む）が変わったら Java の `spdNotifyChanged()` を呼ぶ（エディタ：未保存表示、ビュー：自動保管） | ✅ |
+
+> Java 側の関数（`spdGetInitialText` / `spdNotifyChanged` / `spdRequestSave`）は、存在を確かめてから呼ぶ（`typeof window.spdXxx === "function"`）。約束事を変えるときは、プラグインの `SpdBrowser.java` と同時に直す。
+
 ---
 
 ## 7. 技術仕様
@@ -1152,6 +1167,38 @@ pasteBlock(cells, width, height, ox, oy)（部分Import・スケルトン共通�
   └ cells を (ox+x, oy+y) へ書き込む（範囲外は無視）
 ```
 
+### 7.13e Eclipse 連携の実装（v1.19.0・EC-01〜06）
+
+```
+IN_ECLIPSE    /[?&]host=eclipse(&|$)/.test(location.search) || typeof window.spdGetInitialText === "function"
+ECLIPSE_MODE  URL の mode=（無ければ "editor"）
+
+初期化の最後：IN_ECLIPSE なら setupEclipseBridge()、そうでなければ startAutosave()
+保存ボタン生成：IN_ECLIPSE なら「開く」を追加しない。mode=view なら表示を「保存…」に
+doSave() の冒頭：IN_ECLIPSE なら requestEclipseSave() して return
+
+setupEclipseBridge()
+  ├ check()：eclipseLastState が null（読み込み前・中）なら何もしない
+  │          editState() が eclipseLastState と違えば更新して spdNotifyChanged()
+  ├ click / mouseup / keyup / change / input（キャプチャ）で setTimeout(check, 0)
+  ├ setInterval(check, 1000)（Import はクリップボード読み取りが非同期なので取りこぼし対策）
+  └ keydown（キャプチャ）で Ctrl+S / Cmd+S → preventDefault → requestEclipseSave()
+
+requestEclipseSave()  typeof window.spdRequestSave === "function" なら呼ぶ
+
+loadSpd(text)（Java → JS）
+  ├ eclipseLastState = null（通知を止める）
+  ├ data・undoStack・redoStack を空に、cancelSelection() / clearCaret() / textRunInfo = null / current = "│"
+  ├ "{" で始まる → JSON.parse → data・lang を反映（lang は LANGS に含まれるときだけ）
+  ├ 空でない → stripCommentMarks → parseSPDText → グリッド範囲内のマスを data へ
+  ├ 例外 → alert("SPD ファイルの読み込みに失敗しました（JSON の形式が正しくありません）")
+  └ refreshAll() / renderToolbox() / updateInfo() → eclipseLastState = editState()
+
+getSpdText()（Java → JS）  eclipseLastState = editState() → currentJSON() を返す
+```
+
+変更の検知を自動保存（§7.13c）と同じく**内容の比較**で行うのは、`data` を書き換える経路が多く、編集操作ごとに通知を差し込むと漏れるため。Java から JS へファイル内容を渡すときは、Java 側で JS の文字列を組み立てず、`spdGetInitialText()` で JS から取りに来る（エスケープ漏れを避けるため）。
+
 ### 7.14 アンドゥ・リドゥの実装
 
 ```
@@ -1350,6 +1397,7 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | L-21 | `Alt+Export`（EI-13）は `Alt+クリック` を使うため、**Linux のデスクトップ環境（GNOME / KDE など）では Alt+クリックがウィンドウ移動に使われ、ブラウザにクリックが届かない**ことがある。また SPD は罫線記号など非 ASCII 文字を必ず含むので、貼り付け先の `application.properties` は **UTF-8 で保存**する必要がある（STS / Eclipse の古い既定の ISO-8859-1 では `\uXXXX` に変換されたり保存できなかったりする）。コメント行なので Spring Boot の読み込み自体には影響しない |
 | L-22 | 全角文字に**前後とも挟まれた**奇数個の半角（`値x値`・`「a」` など）は、パディング空白をどちらに置いても間に空白が入る（TX-21 では末尾に置き `値x 値` となる。ランが `HEAD_PAD_CHARS` の記号で始まる場合は先頭に置き `値 .青` となる）。また v1.16.0 以前に作った図は、パディングの位置が保存されたマスのまま残る（`. 青` など）。文字入力欄で打ち直すかテキストラン編集で確定し直すと、TX-21 の位置に置き直される（テキストラン編集では、取り出した入力欄にその空白が表示されるので消してから確定する） |
 | L-23 | スケルトン定義（`spd-patterns.js`）は JavaScript のテンプレート文字列なので、本文に `` ` ``・`${`・`\` をそのまま書くと壊れる（`${...}` は式として評価され、`\` はエスケープ文字になる）。Thymeleaf の `${name}` などは `\${name}` と書く。書き損じると構文エラーでファイル全体が読み込まれず、セレクトボックスが表示されなくなる（ブラウザのコンソールにエラーが出る）。また定義はページを開いたときに読むので、ファイルを書き換えたらページを再読み込みする |
+| L-24 | Eclipse 内（§6.13）で動くかどうかは Eclipse の Browser のエンジン（Windows：Edge / WebView2、mac：WebKit、Linux：WebKitGTK）に依存する。クリップボードを使う Export / Import は、エンジンや Eclipse の設定によっては使えないことがある。また Eclipse 内では自動保存（SL-06）が働かないので、`.spd` ファイルは Eclipse で保存する |
 
 ---
 
@@ -1405,3 +1453,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.17.0 | 2026-10-08 | spd-editor.html | 不具合修正：**半角と全角の間に入るパディング空白で、クラス名や文字列の中身が壊れる**（§6.4 TX-21・§7.10b・L-22）。半角は2文字で1マスに詰めるため、半角が奇数個続くと半角空白1個のパディングが入る。これまでは常に半角の並びの末尾（＝全角文字の直前）に置いていたため、CSS のクラス名 `.青` が `. 青` になった。また罫線直後では TX-19 が開始引用符の右寄せ用空白を消すため、`├─"あいうえお"` がグリッド上 `├─" あいうえお"` となっていた（Export は EI-11 で寄せ直していた）。パディングの位置を**半角ランの前後のマス**で決める規則に改め、一方だけが空き側（空マス・空白・罫線記号・行端）ならその側に置くようにした（`.青` → ` .青`、`├─ "あいうえお"`、` print("あ")`）。前後とも空き／前後とも全角文字なら従来どおり末尾（ただし前後とも全角文字で先頭が開始引用符なら先頭）、引用符1文字は従来の奇偶判定（TX-11）。パディング空白は TX-19 の対象外とした。文字入力（`flush`）とテキストラン編集（`applyTextRunEdit`）の書き込みループを `writeText()` に統合し、判定は `padAtHead()` に一本化。テキストラン取り出し（`extractTextRun`）は `unpadHalfRun()` で同じ判定の逆変換をして、パディングだけを除く（従来は最終マスの末尾空白と前置空白付き引用符だけを除いていた）。Import（`parseSPDText`・EI-05）も同じ判定を使い、インデント直後の奇数個の空白＋半角文字（` .青` を Export したもの）を先頭パディングとして読み戻すので、Export→Import の往復で図が変わらない。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.17.0 に更新 |
 | 1.17.1 | 2026-10-08 | spd-editor.html | 不具合修正：**前後とも全角文字に挟まれた `.青色` がクラス名として壊れる**（§6.4 TX-21・§7.10b・L-22）。v1.17.0 の TX-21 では、前後とも全角文字に挟まれた奇数個の半角ランは末尾にパディングを置くため、`［.青色］` が `［. 青色］` になっていた。**右側の語に付く記号**の集合 `HEAD_PAD_CHARS`（`.` `{` `$` `#` `~` `%` `!` `&` `(` `[` `<` `@`）を設け、前後とも全角文字のときにランがこれらの記号で始まる場合は、開始引用符と同じく先頭にパディングを置くようにした（`［ .青色］`）。`padAtHead()` の判定を変えただけなので、文字入力・テキストラン編集・Import・テキストラン取り出しのすべてに同じく反映される。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.17.1 に更新 |
 | 1.18.0 | 2026-10-08 | spd-editor.html, 2-java/spd-patterns.js | 機能追加：**スケルトン**（§6.12 SK-01〜06・§7.13d・§2・L-23）。クラス・関数・コントローラー・テンプレートなど、書き方が決まっていて「目的」「引数」「戻り値」「処理」などの枝を毎回書く必要があるものを、`spd-patterns.js` にスケルトンとして登録し、タイトル行の 📖 の左に常設したセレクトボックスから名前で選ぶと**カーソル位置を左上として貼り付ける**。定義は `` var SPD_PATTERNS = `…`; `` のテンプレート文字列に、`★タイトル` 行で区切った SPD テキストを書く。`spd-config.js` と同じ `<script src>` 方式なので file:// 直開きでも動く（`fetch` で JSON を読む案は file:// で動かないため不採用）。貼り付けは Import と同じ解析（`parseSPDText`）＋部分Import と同じブロック貼り付けで、既存の内容は確認なしで上書きし、アンドゥで取り消せる。部分Import のブロック貼り付け処理を `pasteBlock()` として切り出して共用。ファイルが無いフォルダではセレクトボックスを表示しない。`2-java/spd-patterns.js` に「出力用テンプレート」「入力用テンプレート（th.object なし）」「コントローラー」の3つを同梱。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.18.0 に更新 |
+| 1.19.0 | 2026-10-09 | spd-editor.html | 機能追加：**Eclipse 連携**（§6.13 EC-01〜06・§7.13e・L-24）。Eclipse プラグイン（`kawaba/eclipse-spd-plugin`）の画面として同じ `spd-editor.html` を使えるようにした。URL の `host=eclipse`（または Java の関数の有無）で Eclipse 内と判定し、「保存」と `Ctrl+S` を Eclipse の保存に回す（`mode=view` では「保存…」）。「開く」ボタン・自動保存・離脱確認は Eclipse 内では使わない。Java から呼ぶ `loadSpd(text)`（JSON・空・SPD テキストを受け付ける）と `getSpdText()`（保存と同じ JSON）を追加し、内容が変わったら `spdNotifyChanged()` で Java に通知する。単体のブラウザでは従来どおり動く。プラグイン側の `web/editor.html` はこのファイルを複製したもので、二重管理をやめた。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.19.0 に更新 |
