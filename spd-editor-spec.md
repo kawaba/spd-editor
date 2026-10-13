@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.21.1 |
+| バージョン | 1.21.2 |
 | 作成日 | 2026-06-28 |
 | 対象ファイル | `spd-editor.html` |
 | 状態 | 開発中 |
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [Java○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.21.1  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [Java○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.21.2  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -658,8 +658,9 @@ var SPD_PATTERNS = `
 | EC-04 | 読み込み | Java から `loadSpd(text)` を呼ぶと、内容を画面に読み込む。履歴・選択・カーソルは消す。JSON（§3.5 と同じ `{ lang, data }`）ならそのまま、空文字（新規ファイル）なら空のグリッド（言語は `spd-config.js` の既定）、それ以外は SPD テキスト（Export した形式）とみなして Import と同じ規則（`stripCommentMarks`・`parseSPDText`）で読み込む。読み込み中は変更通知を出さない | ✅ |
 | EC-05 | 保存用の内容 | Java から `getSpdText()` を呼ぶと、「保存」と同じ JSON 文字列を返す | ✅ |
 | EC-06 | 変更通知 | 内容（言語を含む）が変わったら Java の `spdNotifyChanged()` を呼ぶ（エディタ：未保存表示、ビュー：自動保管） | ✅ |
+| EC-07 | Import のクリップボード読み取り（v1.21.2） | Java の `spdGetClipboardText()` があればそれでクリップボードの文字列を読む（`readClipboardText()`）。無ければ従来どおり `navigator.clipboard.readText()`。Eclipse（WebView2）では許可ダイアログで許可しても `readText()` が読めないことがあるため。読み取りに失敗したら情報バーに「クリップボードを読み取れませんでした」と出す | ✅ |
 
-> Java 側の関数（`spdGetInitialText` / `spdNotifyChanged` / `spdRequestSave`）は、存在を確かめてから呼ぶ（`typeof window.spdXxx === "function"`）。約束事を変えるときは、プラグインの `SpdBrowser.java` と同時に直す。
+> Java 側の関数（`spdGetInitialText` / `spdNotifyChanged` / `spdRequestSave` / `spdGetClipboardText`）は、存在を確かめてから呼ぶ（`typeof window.spdXxx === "function"`）。約束事を変えるときは、プラグインの `SpdBrowser.java` と同時に直す。
 
 ---
 
@@ -1249,6 +1250,10 @@ setupEclipseBridge()
 
 requestEclipseSave()  typeof window.spdRequestSave === "function" なら呼ぶ
 
+readClipboardText()（Import・EC-07・v1.21.2）
+  typeof window.spdGetClipboardText === "function" なら Promise.resolve(その戻り値 || "")
+  そうでなければ navigator.clipboard.readText()
+
 loadSpd(text)（Java → JS）
   ├ eclipseLastState = null（通知を止める）
   ├ data・undoStack・redoStack を空に、cancelSelection() / clearCaret() / textRunInfo = null / current = "│"
@@ -1524,3 +1529,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.20.0 | 2026-10-10 | spd-editor.html | 変更：**ツールボックスの流し込み表示**（§4.1・§7.12）。横幅が狭く1段目・2段目のどちらかが1行に収まらないときは、2段の区切りをなくして1段目の後ろに2段目のボタンを続けて並べ、幅に応じて折り返す（旧版は各段が別々に折り返して最大4段になっていた）。段の境目は縦線で示す。切り替えは各段の幅を実測して `ResizeObserver` で動的に行う。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.20.0 に更新 |
 | 1.21.0 | 2026-10-13 | spd-editor.html | 変更：**(1) Enter で挿入**（§6.4 TX-04・TX-22・§7.9b）。文字入力欄の Enter（新規入力）を、カーソル位置からの上書きから**カーソル位置への挿入**に変更した。文字列の途中なら「前半＋入力＋後半」で書き直し（半角2文字のマスの途中でも挿入でき、パディング位置も決め直す）、右側は空マスの手前までをずらし、ずらした分は直後の空マスで吸収する。行は折り返さず、右端からはみ出した分は捨てる。挿入後のカーソルは挿入した文字列の直後。従来の上書きは **Shift+Enter** で行う。スタンプボタンとテキストラン編集の Enter は従来どおり。`insertText()`・`findTextRunNoGap()`・`splitTextRun()` を追加。入力欄のプレースホルダーと情報バーの案内を変更。**(2) Thymeleaf 用ツールバー**（§4.1〜§4.4・§7.12）。Thymeleaf モードのボタンを Java と同じものから専用に変更した。`↩` `↪` ｜ `［見出し］` `［小見出し］` `［文字］` `［段落］` `［フォーム］` `［リンク］` `［表（行）］` `［表（列）］` `［画像］` ｜ `│` `─` `└─` `├─` `┬─` `→` `＜＞` `{}` `<<>>` ｜ `行+` 以降は従来どおり。`［］` のボタンは括弧ごとスタンプする（罫線なし）。`＜＞` `{}` `<<>>` は配置後にカーソルを括弧の中央へ置き、続けて Enter で中に追記できる（Shift+クリックで入力欄へ挿入したときも中央）。Thymeleaf では `┬` `┴` `←` `⇒` `─⊳` `---⊳` と制御記号（`◇─` など）を表示しない。表示方法は他の言語と同じ2段表示で、`│` 以降を2段目に並べ、幅が狭くなったら流し込み表示にする。`THYMELEAF_SYMBOLS`・`THYMELEAF_TITLES`・`BRACKET_SYMBOLS`・`BRACKET_TITLES`・`ARROW_SYMBOLS_THYMELEAF` を追加。記号リストに `docs/記号リスト/thymeleaf-symbols.txt` を追加（§4.4b）。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.21.0 に更新 |
 | 1.21.1 | 2026-10-13 | spd-editor.html, 2-java/spd-patterns.js | 変更：**スケルトンの見直し**（§6.12）。`2-java/spd-patterns.js` を 14 種類に更新。「リポジトリ」を「リポジトリ（基本）」（目的・対象・主キーだけ）と「リポジトリ（応用）」に分け、「コントローラー」のメソッドの枝を「マッピング → 目的 → 引数 → 戻り値 → 処理」の順に変更、「入力用テンプレート（Formオブジェクトを受け取る）」を「入力用テンプレート（受取りあり）」に改名。ファイルは BOM なしの UTF-8。root／1-python／2-java／3-C の4ファイルの表示バージョンを 1.21.1 に更新 |
+| 1.21.2 | 2026-10-14 | spd-editor.html | 不具合修正：**Eclipse 内で Import が効かない**（§6.13 EC-07・§7.13e）。Eclipse の画面（WebView2）では、クリップボードの読み取りを許可しても `navigator.clipboard.readText()` が読めず、何も起こらなかった（2026-10-13 に WebView2 が 155 に更新されてから）。Java の `spdGetClipboardText()` があればそれでクリップボードを読む `readClipboardText()` を追加し、`doPaste()` から使う。単体のブラウザでは従来どおり `readText()`。読み取りに失敗したら情報バーに「クリップボードを読み取れませんでした」と出す（従来は何も出なかった）。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.21.2 に更新 |
