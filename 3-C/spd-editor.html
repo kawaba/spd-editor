@@ -354,8 +354,6 @@ const langbar = document.getElementById("langbar");   // 言語切替ラジオ�
    ツールバーの内側の幅を比べ、どちらかの段が収まらなければ .flow を付ける。
    ボタン幅は表示方式で変わらないので、.flow の付け外しで判定が揺れることはない */
 function updateToolFlow(){
-  // Thymeleaf はボタンが多いので常に1本に流し込む（v1.21.0）
-  if (currentLang === "thymeleaf"){ toolbox.classList.add("flow"); return; }
   const avail = toolbox.parentElement.clientWidth
               - parseFloat(getComputedStyle(toolbox.parentElement).paddingLeft)
               - parseFloat(getComputedStyle(toolbox.parentElement).paddingRight);
@@ -431,7 +429,6 @@ function renderToolbox(){
   const lineArrow = currentLang === "thymeleaf" ? [...lineSymbols, ...arrowSymbols]
                                                 : [...lineSymbols, "|", ...arrowSymbols];
   // 2段構成：段1=履歴(↩↪)＋言語別シンボル／段2=罫線・矢印・操作・クリア・入出力・保存/開く
-  // （Thymeleaf は常に流し込み表示＝1本に並べ、段の境目は縦線 .toolrow-joint になる）
   [
     ["__undo", "__redo", "|", ...symbols],
     [...lineArrow, "|", "__insrow", "__delrow", "__cellcopy", "__cellpaste", "__erase", "__inscell", "|", "__clear", "|", "__copy", "__paste"]
