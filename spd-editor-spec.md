@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.21.2 |
+| バージョン | 1.22.0 |
 | 作成日 | 2026-06-28 |
 | 対象ファイル | `spd-editor.html` |
 | 状態 | 開発中 |
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [Java○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.21.2  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.22.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -61,10 +61,10 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
         ↑ グリッド下の余白は約 20px に固定（v1.5.0）
 ```
 
-- アプリ最上部の**タイトル行**（`.titlebar`、`justify-content:space-between`）は、左に**言語切替ラジオ**（Java/Thymeleaf/Python/C・左詰め）と**編集中ファイル名**、右にタイトル「SPD Editor」と現在バージョン `ver. X.Y.Z` を表示する（言語ラジオは v1.9.0 で2段目からタイトル行へ移動）。
+- アプリ最上部の**タイトル行**（`.titlebar`、`justify-content:space-between`）は、左に**言語切替ラジオ**（JavaSE/Spring/Thymeleaf/Python/C・左詰め。`spd-config.js` の `langs` で絞れる・CF-06）と**編集中ファイル名**、右にタイトル「SPD Editor」と現在バージョン `ver. X.Y.Z` を表示する（言語ラジオは v1.9.0 で2段目からタイトル行へ移動）。
 - **ファイル名表示**（`.filename` / `#filename`）は言語ラジオの右・**20px の間隔**をあけた位置に `[sample.json]` の形式で表示する（v1.10.0・SL-04）。ラジオとファイル名は `.titleleft`（`display:flex; gap:20px`）でまとめる。`renderToolbox()` が `#langbar` を作り直してもファイル名が消えないよう、ファイル名要素は `langbar` の外（兄弟要素）に置く。
 - **外部リンクボタン**（`.titleright` / `.helplink`）は、タイトル「SPD Editor」の**左側**に 📖（U+1F4D6）💡（U+1F4A1）の順で並べる（v1.10.8）。タイトルとリンクは `.titleright`（`display:flex; gap:14px`）でまとめる。詳細は §6.11。
-- **スケルトン選択**（`select.skeleton` / `#skeleton`）は 📖 の**左側**に置く（v1.18.0）。`spd-patterns.js` が無いとき・スケルトンが1つも無いときは表示しない（`hidden`）。詳細は §6.12。
+- **スケルトン選択**（`select.skeleton` / `#skeleton`）は 📖 の**左側**に置く（v1.18.0）。選択中の言語のスケルトン定義ファイル（`javase-patterns.js` など）が無いとき・スケルトンが1つも無いときは表示しない（`hidden`）。詳細は §6.12。
 - ツールボックスは2段構成（v1.5.0 で旧3段から変更）。**1段目**は左端に履歴ボタン `↩` `↪`＋縦線、続いて言語別シンボル（横幅に応じて折り返す）。**2段目**は罫線グループ・矢印グループ・特殊ボタン群を縦線で区切って並べる（v1.9.0 で履歴を1段目へ移動、`Export` `Import` `保存` `開く` を2段目の `全消去` の右へ集約）。
 - **保存・開くボタン**は2段目の `Import` の右に横並びで配置する（v1.9.0。旧 v1.5.0 まではツールボックス右端に縦並び）。**クリアボタン**は2段目の操作群の右・`Export` の左に置く。
 - **矩形選択は専用ボタンを持たず、グリッド上のドラッグで行う**（旧 v0.6 までの `□` ボタンは v1.2.0 で廃止）。
@@ -150,7 +150,7 @@ cellClipboard = {
 
 - **1段目**：左端に履歴ボタン `↩`（元に戻す）`↪`（やり直す）→ 縦線（`.toolrow-vsep`）→ 言語別シンボル（`JAVA_SYMBOLS` / `C_SYMBOLS` / `PYTHON_SYMBOLS`）を横並びで表示する。`flex-wrap` により横幅が足りなければ自動で折り返す（履歴の1段目移動は v1.9.0）。
 - **2段目**：罫線記号グループ → 矢印記号グループ → 操作ボタン群（`行+` `行-` `コピー` `貼付け` `削除` `挿入`）→ `全消去` → 入出力（`Export` `Import` `保存` `開く`）を、縦線（`.toolrow-vsep`）で区切って並べる。罫線・矢印グループは言語によって内容が変わる（v1.9.0：`行+` `行-` を `コピー` の左へ、`Export` `Import` `保存` `開く` を `全消去` の右へ集約）。
-- **言語切替ラジオ**（Java/Thymeleaf/Python/C）は2段目ではなく**タイトル行の左端**に置く（v1.9.0。§2）。
+- **言語切替ラジオ**（JavaSE/Spring/Thymeleaf/Python/C）は2段目ではなく**タイトル行の左端**に置く（v1.9.0。§2）。
 - **保存・開くボタン**は2段目の入出力グループに横並びで含める（v1.9.0。旧 v1.5.0 まではツールボックス右端に縦並び `.toolbar-actions`）。
 - **流し込み表示**（v1.20.0）：1段目・2段目のどちらかが1行に収まらない幅になったら、段の区切りをなくし、1段目の最後に続けて2段目のボタンを並べ、幅に応じて順に折り返す（`.tools.flow`）。1段目と2段目の境目は、横線（`.toolrow-sep`）の代わりに縦線（`.toolrow-joint`）で示す。両方の段が収まる幅に戻ると2段表示に戻る。旧 v1.19.1 までは各段がそれぞれ折り返していたため、狭い幅では最大4段になっていた（§7.12）。
 - **Thymeleaf モード**（v1.21.0）：他の言語と同じく、1段目に `↩` `↪` と `［見出し］`〜`［画像］`、2段目に `│` 以降を並べ、幅が狭くなったら流し込み表示にする。並びは次のとおりで、縦線は `↪` の後・`<<>>` の後に入る（流し込み表示のときは `［画像］` の後にも段の境目の縦線 `.toolrow-joint` が入る）。`行+` 以降は他の言語と同じ。
@@ -220,7 +220,7 @@ Java 用から例外処理の `〇─try:` `〇─catch:` を除いたもの（v
 
 #### Thymeleaf 用（`THYMELEAF_SYMBOLS`・v1.21.0）
 
-画面の部品を `［］` で囲んだラベルで示す（罫線は付けない）。HTML テンプレートの構成（`└─構成` の下の枝）を書くためのもので、スケルトン（`2-java/spd-patterns.js` のテンプレート）の表記に合わせている。ツールチップは `THYMELEAF_TITLES` に定義する。v1.21.0 で Java と同じツールバーから置き換えた（旧版では `◇─` などの制御記号を表示していた）。
+画面の部品を `［］` で囲んだラベルで示す（罫線は付けない）。HTML テンプレートの構成（`└─構成` の下の枝）を書くためのもので、スケルトン（`2-java/thymeleaf-patterns.js` のテンプレート）の表記に合わせている。ツールチップは `THYMELEAF_TITLES` に定義する。v1.21.0 で Java と同じツールバーから置き換えた（旧版では `◇─` などの制御記号を表示していた）。
 
 | # | シンボル | 説明（ツールチップ） |
 |---|---------|------|
@@ -303,7 +303,7 @@ Thymeleaf の `＜＞` `{}` `<<>>`（`BRACKET_SYMBOLS`・ツールチップは `
 | `保存` | `doSave` | 2段目・入出力 | 保存 | `data` と言語を JSON で保存。直近に開いた／保存したフォルダから保存ダイアログを開く（v1.9.0 で2段目へ移動。`.act` ボタン・§6.6） |
 | `開く` | `doLoad` | 2段目・入出力 | 保存 | JSON ファイルを読み込み。ファイル名をタイトル行に表示しフォルダを記憶する（v1.9.0 で2段目へ移動。`.act` ボタン・§6.6） |
 
-言語切替ラジオボタン（Java / Thymeleaf / Python / C）は**タイトル行の左端**に配置する（v1.9.0。Thymeleaf は v1.15.0 で Java と Python の間に追加）。初期値は Python（または設定ファイル `spd-config.js` の指定。§6.10）。
+言語切替ラジオボタン（JavaSE / Spring / Thymeleaf / Python / C）は**タイトル行の左端**に配置する（v1.9.0。Thymeleaf は v1.15.0 で Java と Python の間に追加。v1.22.0 で Java を JavaSE と表示し、その右に Spring を追加）。初期値は Python（または設定ファイル `spd-config.js` の指定。§6.10）。
 
 `コピー` `貼付け` `行+` `行-` `↩` `↪` `Export` `Import` `保存` `開く` `全消去` はモードにならない即時実行アクション（アクティブ表示なし）。
 
@@ -316,7 +316,10 @@ Thymeleaf の `＜＞` `{}` `<<>>`（`BRACKET_SYMBOLS`・ツールチップは `
 
 - ラジオボタン変更時、シンボルボタンを選択中言語のものに切り替えて再描画する
 - `current`（最後に使ったツール）を `"│"` にリセットし、アクティブ表示もクリアする
-- Export 形式：Java/C は `/* */`、Thymeleaf は `<!--/* */-->`、Python は `"""`
+- Export 形式：JavaSE/Spring/C は `/* */`、Thymeleaf は `<!--/* */-->`、Python は `"""`
+- **Spring モード**（v1.22.0）：ツールバー・Export・Import・`Alt+Export`（EI-13）・💡 のリンク先は JavaSE とまったく同じで、切り替えない。違うのはスケルトンの一覧（SK-07）だけ。判定は `isJavaLang(lang)`（`"java"` か `"spring"`）
+- JavaSE の内部の値は `"java"` のまま（v1.21.2 までの「Java」）。保存済みの JSON・`.spd`・自動保存・`spd-config.js`・Eclipse の新規ファイルウィザードの `lang: "java"` をそのまま読めるようにするため
+- ラジオボタンを切り替えると、スケルトンのセレクトボックスもその言語の一覧に切り替わる（SK-07）
 - **Thymeleaf モード**（v1.15.0）：Export の囲み記号は Thymeleaf のパーサーレベルコメント `<!--/*` … `*/-->`。💡 のリンク先は Java と同じ。ツールバーは v1.21.0 で Thymeleaf 専用（`THYMELEAF_SYMBOLS`・`LINE_SYMBOLS`・`ARROW_SYMBOLS_THYMELEAF`）に変更した（§4.1〜§4.4。v1.20.0 までは Java と同じツールバー）
 
 ---
@@ -427,7 +430,7 @@ mouseup   ドラッグしていた → 選択を確定
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
 | T-01 | シンボルパレット | 1段目に履歴ボタン（↩↪）＋選択言語（Java/Thymeleaf/Python/C）の言語別シンボルを折り返し表示し、2段目に罫線記号グループ・矢印記号グループ・操作ボタン群・クリア・入出力（Export/Import/保存/開く）を縦線で区切って表示する（v1.5.0 で2段構成、v1.9.0 で並び再編） | ✅ |
-| T-02 | 言語切替 | タイトル行左端のラジオボタンで Java/Thymeleaf/Python/C を切り替え（Thymeleaf は v1.15.0 で追加し、v1.21.0 で専用のシンボル・罫線・矢印に変更）、1段目の言語別シンボルと2段目の罫線・矢印グループを更新する。初期値は Python（設定ファイル `spd-config.js` があればその指定。v1.9.0 で2段目右端からタイトル行へ移動） | ✅ |
+| T-02 | 言語切替 | タイトル行左端のラジオボタンで JavaSE/Spring/Thymeleaf/Python/C を切り替え（Thymeleaf は v1.15.0 で追加し、v1.21.0 で専用のシンボル・罫線・矢印に変更。Spring は v1.22.0 で追加し、ツールバーは JavaSE と同じ）、1段目の言語別シンボルと2段目の罫線・矢印グループを更新する。初期値は Python（設定ファイル `spd-config.js` があればその指定。v1.9.0 で2段目右端からタイトル行へ移動） | ✅ |
 | T-03 | マウス配置 | マスをクリックしてカーソルを設定し、ボタンをクリックで配置する | ✅ |
 | T-04 | 置換 | 既に配置済みのマスに配置すると上書きする | ✅ |
 | T-05 | 単文字シンボル | 文字数1のシンボルはカーソル位置に1文字を直接配置する | ✅ |
@@ -531,8 +534,8 @@ mouseup   ドラッグしていた → 選択を確定
 | EI-10 | Export の余白正規化（v1.13.1） | Export するテキストは、**内容のあるセルの外接範囲まで余白を詰めて**出力する。すなわち (1) 最小 x（左端）を行頭に詰める＝**左マージンの除去**、(2) 最小 y の行から出力する＝**先頭空行の除去**、(3) 最大 y の行で出力を終える＝**末尾空行の除去**。図をグリッドの1列目・1行目以外から書き始めても、出力テキストに余分な行頭インデントや前後の空行が入らない。**図の途中の空行は意味（処理のまとまりの区切り）を持つため必ず残す**。全体Export・部分Export（EI-07）に適用する。**`Shift+Export`（EI-09）では正規化を行わず、指定範囲をそのまま出力する**（`buildText(rect, raw)` の `raw=true`）。判定対象は `│`（自動補完を含む）を含むすべての非空白セルで、空マス・全角空白だけのマスは内容とみなさない。相対的なインデント（各行の左端からの深さの差）と行間は変わらないため、図の構造は保たれる。内容が1つも無い場合は範囲をそのまま出力する。**目的**：Export したテキストから Python コードを生成する際、行頭の余分な空白が丸ごと余分なインデントとして写り、`IndentationError` になるのを防ぐ。あわせて、図をグリッドのどの位置に描いても Export 結果が同一になるようにする | ✅ |
 | EI-11 | Export の引用符パディング寄せ直し（v1.13.1） | マスの中身が「引用符（`"` または `'`）1文字＋パディング半角空白1個」だけの場合、Export では**空白が必ず文字列の外側に来る向き**で出力する。開始引用符 → ` "`（空白は左）、終了引用符 → `" `（空白は右）。開始／終了は行内の出現回数の奇偶で判定する（TX-11・EI-06 と同じ規則）。**目的**：`├─"あいうえお"` と打つとグリッドでは開始引用符が左スロットに落ちる（TX-19 が右寄せ用スペースを消すため・§7.11）ので、そのまま出すと `├─" あいうえお"` となり**文字列の中身に半角空白が混入**する。これを `├─ "あいうえお"` として出力し、生成コードが `print(" あいうえお")` にならないようにする。**空白を削除せず移動するだけなので文字数は変わらず、図の桁は1文字もずれない**。通常Export・`Shift+Export`（EI-09）の**両方**に適用する（EI-10 と違い Shift でも行う：これはマス内のパディングの向きの問題で、どちらのモードでも文字列の中身を壊すため）。Import は奇偶判定で単独引用符から寄せを復元する（EI-06）ので往復しても出力テキストは安定する。**v1.17.0 以降**は TX-21 により入力時点で開始引用符が右寄せになるため、この寄せ直しが働くのは主に v1.16.0 以前に作った図（`" ` のまま保存されたマス）と、前後とも全角文字に挟まれた引用符の場合 | ✅ |
 | EI-12 | タブ文字の展開（v1.13.2） | 取り込むテキストに含まれる**タブ文字（U+0009）はタブ幅 `TABSIZE`（既定 4）で半角空白へ展開**してから解析・書き込みを行う（`expandTabs()`）。タブ位置は行頭から数える（Eclipse など一般的なエディタと同じ数え方）。適用箇所は **Import（`parseSPDText()`・EI-04／EI-08）／文字入力欄の確定（`flush()`）／テキストラン編集の確定（`applyTextRunEdit()`）** の3つ、すなわち**外部テキストがグリッドへ入るすべての口**。**目的**：タブは `isHalf()`（`charCodeAt(0) <= 0x7F`）が真になるため、展開しないと「普通の半角文字」として隣の文字と1マスにペアリングされてしまう。マスは `white-space:pre` ＋ `overflow:hidden` なのでタブがマスの幅いっぱいを食い、**同じマスに入った相方の文字が欄外へ押し出されて見えなくなる**（データには残るため、ダブルクリックで文字入力欄に上げると見える）。さらに以降の文字が半角1文字分ずれてペアリングされ、行全体が崩れる。タブが偶数個並ぶインデントでは症状が出ず、**奇数個のときだけ直後の1文字が消える**ため発見しにくい。展開後はインデント領域の半角空白として EI-05 の規則（半角2個＝1マスの空セル）で処理されるので、**タブ1段（4個）＝2マス**分のインデントとして再現される | ✅ |
-| EI-13 | properties 用 # コメントExport（Alt+Export・v1.15.0） | **Java モード**で `Alt` を押しながら `Export` すると、`/* */` で囲まずに**全行の行頭に `#  `（`#`＋半角空白2個）を付けて**クリップボードへ出力する（`doCopy(plain, props)` の `props=true`）。空行は `#` だけにする（行末に空白を残さない）。**目的**：Spring Boot の設定ファイル `application.properties` にコメント行として SPD を書き込むため。余白正規化（EI-10）と引用符パディングの寄せ直し（EI-11）は通常Export と同じく行う。範囲選択中は EI-07 と組み合わさり、選択矩形だけを出力する。**Java 以外のモード（Thymeleaf を含む）での `Alt+Export`、および `Shift+Alt+Export` は無効で、何もしない**（クリップボードも選択範囲も変更しない） | ✅ |
-| EI-14 | Import 時のコメント記号除去（v1.15.0） | Import（EI-04）・部分Import（EI-08）では、解析の前に `stripCommentMarks()` でコメント記号を取り除く。**(1) 囲み記号**：空行を除いた最初の行と最後の行が `/*` と `*/`、`"""` と `"""`、`<!--/*` と `*/-->` のいずれかの組なら、その2行と外側の空行を取り除く。**言語モードに関係なく中身で判定**し（Java モードで Python の `"""` 付きテキストを Import しても取り除く）、判定では行の前後の空白・タブを無視する（ソースコード中でインデントされたコメントに対応）。**(2) 行頭の `#`**：**Java モードのみ**、空行以外の**すべての行**が `#` で始まるときに限り、各行の先頭の `#` と直後の半角空白（最大2個）を取り除く（EI-13 の `#  ` の逆。空白も取るので、図が1マス右へずれずに列0から置かれる）。一部の行だけが `#` で始まる場合（`server.port=8080` などの設定行を含めてコピーした場合）は取り除かない。(1)(2) の順に適用するので両方付いていても取れる。取り除いたときは情報バーに「コメント記号を取り除いてインポートしました」と表示する。**対象外**：記号と本文が同じ行にある書き方（`/* ┌─main` など）、Javadoc の `/**` と行頭の ` * `、Python の `'''`、本文の行頭インデント（従来どおり空マスとして取り込む） | ✅ |
+| EI-13 | properties 用 # コメントExport（Alt+Export・v1.15.0） | **JavaSE・Spring モード**で `Alt` を押しながら `Export` すると、`/* */` で囲まずに**全行の行頭に `#  `（`#`＋半角空白2個）を付けて**クリップボードへ出力する（`doCopy(plain, props)` の `props=true`）。空行は `#` だけにする（行末に空白を残さない）。**目的**：Spring Boot の設定ファイル `application.properties` にコメント行として SPD を書き込むため。余白正規化（EI-10）と引用符パディングの寄せ直し（EI-11）は通常Export と同じく行う。範囲選択中は EI-07 と組み合わさり、選択矩形だけを出力する。**JavaSE・Spring 以外のモード（Thymeleaf を含む）での `Alt+Export`、および `Shift+Alt+Export` は無効で、何もしない**（クリップボードも選択範囲も変更しない） | ✅ |
+| EI-14 | Import 時のコメント記号除去（v1.15.0） | Import（EI-04）・部分Import（EI-08）では、解析の前に `stripCommentMarks()` でコメント記号を取り除く。**(1) 囲み記号**：空行を除いた最初の行と最後の行が `/*` と `*/`、`"""` と `"""`、`<!--/*` と `*/-->` のいずれかの組なら、その2行と外側の空行を取り除く。**言語モードに関係なく中身で判定**し（Java モードで Python の `"""` 付きテキストを Import しても取り除く）、判定では行の前後の空白・タブを無視する（ソースコード中でインデントされたコメントに対応）。**(2) 行頭の `#`**：**JavaSE・Spring モードのみ**、空行以外の**すべての行**が `#` で始まるときに限り、各行の先頭の `#` と直後の半角空白（最大2個）を取り除く（EI-13 の `#  ` の逆。空白も取るので、図が1マス右へずれずに列0から置かれる）。一部の行だけが `#` で始まる場合（`server.port=8080` などの設定行を含めてコピーした場合）は取り除かない。(1)(2) の順に適用するので両方付いていても取れる。取り除いたときは情報バーに「コメント記号を取り除いてインポートしました」と表示する。**対象外**：記号と本文が同じ行にある書き方（`/* ┌─main` など）、Javadoc の `/**` と行頭の ` * `、Python の `'''`、本文の行頭インデント（従来どおり空マスとして取り込む） | ✅ |
 
 ### 6.8 アンドゥ・リドゥ
 
@@ -570,10 +573,11 @@ mouseup   ドラッグしていた → 選択を確定
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
 | CF-01 | 設定ファイル読込 | エディタと同じフォルダに `spd-config.js` があれば起動時に読み込み、初期言語モードを決定する。毎回言語を選ぶ手間をなくす | ✅ |
-| CF-02 | ファイル形式 | JavaScript ファイルで、グローバル変数 `SPD_CONFIG`（オブジェクト）を設定する。例：`var SPD_CONFIG = { lang: "java" };`。`lang` は `"java"` / `"thymeleaf"` / `"python"` / `"c"`（`LANGS` のいずれか） | ✅ |
+| CF-02 | ファイル形式 | JavaScript ファイルで、グローバル変数 `SPD_CONFIG`（オブジェクト）を設定する。例：`var SPD_CONFIG = { lang: "java" };`。`lang` は `"java"`（JavaSE）/ `"spring"` / `"thymeleaf"` / `"python"` / `"c"`（`LANGS` のいずれか） | ✅ |
 | CF-03 | 読込方式 | `<script src="spd-config.js">` で読み込む。`fetch` と異なり `<script src>` は **file:// 直開き・サーバ運用の双方で動作**する（ローカル直開きユーザーにも対応） | ✅ |
 | CF-04 | 不在時の挙動 | ファイルが無ければ読み込み失敗（コンソール警告のみ）で `SPD_CONFIG` 未定義となり、従来どおり既定（Python）で起動する。`SPD_CONFIG.lang` が未知の値でも既定で起動 | ✅ |
-| CF-05 | 拡張性 | `SPD_CONFIG` にキーを追加すれば将来の起動時設定（既定フォルダ・既定シンボル等）に拡張できる。現状は `lang` のみ参照 | 📋 |
+| CF-05 | 拡張性 | `SPD_CONFIG` にキーを追加すれば将来の起動時設定（既定フォルダ・既定シンボル等）に拡張できる。現状は `lang` と `langs`（CF-06）を参照 | 📋 |
+| CF-06 | ラジオに出す言語（v1.22.0） | `langs` に言語の配列を書くと、そのラジオボタンだけを `LANGS` の順で表示する。例：`var SPD_CONFIG = { lang: "java", langs: ["java", "spring", "thymeleaf"] };`（Eclipse プラグインの `web/spd-config.js`）。省略時・有効な値が1つも無いときは全言語。`lang` が `langs` に無いとき（省略時の既定 Python を含む）は `langs` の先頭で起動する。**`langs` に無い言語のファイル（JSON・`.spd`）を開いたときは、その言語のラジオボタンも足して表示する**（知らないうちに別の言語へ変わらないように。別の言語に切り替えると消える）。判定は `configLangs()`（設定の一覧）と `visibleLangs()`（それに現在の言語を足したもの） | ✅ |
 
 > 運用例：言語別にサブフォルダ（`java/` `c/` 等）を作り、各フォルダに `spd-editor.html` と `spd-config.js`（`{ lang: "java" }` など）を置けば、フォルダごとに固定言語で起動できる。
 
@@ -621,15 +625,16 @@ const PATTERN_URL = {
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
 | SK-01 | スケルトン選択 | タイトル行の 📖 の左に**セレクトボックス**を常設する。先頭は見出し「スケルトン…」で、その下に登録順でスケルトンのタイトルを並べる。選ぶと SK-04 の貼り付けを行い、選択は**すぐ見出しへ戻す**（同じスケルトンを続けて何度でも選べる）。選択後はセレクトボックスからフォーカスを外し、矢印キーなどをグリッド操作へ戻す | ✅ |
-| SK-02 | 定義ファイル | エディタと同じフォルダの `spd-patterns.js` から読み込む。`spd-config.js`（CF-03）と同じく `<script src>` で読むので、**file:// 直開き・サーバ運用の双方で動作**する（`fetch` は file:// では使えない）。ファイルが無いとき・スケルトンが1つも無いときはセレクトボックスを表示しない。言語別フォルダ（`1-python` / `2-java` / `3-C`）ごとに別の内容を置ける | ✅ |
+| SK-02 | 定義ファイル | エディタと同じフォルダの、**言語ごとのファイル**から読み込む（v1.22.0。`PATTERN_FILES`）：JavaSE＝`javase-patterns.js`、Spring＝`spring-patterns.js`、Thymeleaf＝`thymeleaf-patterns.js`、Python＝`python-patterns.js`、C＝`c-patterns.js`。`<script>` で読むので、**file:// 直開き・サーバ運用の双方で動作**する（`fetch` は file:// では使えない）。ファイルが無いとき・`SPD_PATTERNS` が空のとき・スケルトンが1つも無いときはセレクトボックスを表示しない。同梱は `2-java/` に JavaSE・Spring・Thymeleaf の3つ、`1-python/` に Python、`3-C/` に C（Python・C は今は空）。直下にはファイルを置かないので表示しない。v1.21.2 までの `spd-patterns.js`（全言語共通の1ファイル）は使わない | ✅ |
 | SK-03 | 定義の書式 | グローバル変数 `SPD_PATTERNS` にテンプレート文字列（`` ` `` で囲む）で SPD テキストを書く。**`★` で始まる行がタイトル**、次の `★` までが本文。本文の前後の空行は除き、途中の空行は残す。最初の `★` より前の行は無視する（説明を書ける）。タイトルや本文が空のものは登録しない。本文中の `` ` ``・`${`・`\` は `` \` ``・`\${`・`\\` と書く（JavaScript のテンプレート文字列の規則。L-23） | ✅ |
 | SK-04 | 貼り付け | 本文を Import と同じ規則（`parseSPDText`・EI-05／TX-21）でマス目に変換し、**カーソル位置を左上**として部分Import（EI-08）と同じ**ブロック貼り付け**を行う。貼り付け矩形は一旦クリアし、**既存の内容は確認なしで上書きする**（アンドゥで戻せる。SK-05）。グリッド範囲外ははみ出し切り捨て。`│` の自動補完は貼り付け後に通常どおり働く。矩形選択中なら選択を解除し、編集中のテキストラン情報は破棄する。情報バーに「スケルトン「○○」を貼り付けました」と表示する | ✅ |
 | SK-05 | アンドゥ | 貼り付け前に履歴を保存するので、`↩`／Ctrl+Z で1回で取り消せる | ✅ |
 | SK-06 | カーソル未設定 | カーソルが無いときは貼り付けず、情報バーに「貼り付け先のマスをクリックしてからスケルトンを選んでください」と表示する | ✅ |
+| SK-07 | 言語ごとの切り替え（v1.22.0） | 言語ラジオの切替・JSON や `.spd` の読み込み・`spd-config.js` の起動時設定のいずれでも、セレクトボックスを現在の言語のスケルトンに並べ直す（`renderToolbox()` の末尾で `updateSkeletons()`）。5つのファイルはどれも同じ変数 `SPD_PATTERNS` を定義するので、ページに全部を並べて読むことはできない。そこで、**その言語に初めて切り替えたときに、その言語のファイルだけを `<script>` 要素で後から読み込む**。読み込みが終わるまではセレクトボックスを隠す。一度読んだ言語の一覧は覚えておき（`skeletonCache`。ファイルが無い・空も「0件」として覚える）、2回目からは読み込まない。読み込み中に別の言語へ切り替えたときは、終わった一覧を覚えるだけで表示はしない（後から前の言語の一覧が出ないように）。読み込みに使った `<script>` 要素は終わったら取り除く | ✅ |
 
 > **スケルトンの作り方**：本文は**エディタで描いて `Shift+Export`（コメント記号なし・EI-09）したテキスト**をそのまま貼るのが確実。インデントは半角空白2個＝1マスで、手で書くと1個のずれで枝がずれる。Export したテキストは Import と往復できる（EI-05・TX-21）ので、貼り付けると元の図がそのまま再現される。
 
-`spd-patterns.js` の例（`2-java/spd-patterns.js` に同梱）：
+`spring-patterns.js` の例（`2-java/spring-patterns.js` に同梱）：
 
 ```js
 var SPD_PATTERNS = `
@@ -640,8 +645,8 @@ var SPD_PATTERNS = `
 ├─ベースパス： /□□
 …
 
-★出力用テンプレート
-テンプレート：□□
+★サービス
+サービス：□□
 …
 `;
 ```
@@ -1054,8 +1059,9 @@ writeText(chars, put, rightOf)（flush・applyTextRunEdit 共通の書き込み�
 ### 7.12 言語切替の実装
 
 ```js
-const LANGS = ["java", "thymeleaf", "python", "c"];   // ラジオの並び順（v1.15.0）
-const LANG_NAMES = { java: "Java", thymeleaf: "Thymeleaf", python: "Python", c: "C" };  // 表示名
+const LANGS = ["java", "spring", "thymeleaf", "python", "c"];   // ラジオの並び順（v1.22.0。java＝JavaSE）
+const LANG_NAMES = { java: "JavaSE", spring: "Spring", thymeleaf: "Thymeleaf", python: "Python", c: "C" };  // 表示名
+const isJavaLang = lang => lang === "java" || lang === "spring";   // Alt+Export・Import の # 除去（v1.22.0）
 let currentLang = "python";   // 初期値
 
 // ラジオボタン onChange
@@ -1075,6 +1081,7 @@ const arrowSymbols = currentLang === "python"    ? ARROW_SYMBOLS_PYTHON
                    : currentLang === "c"         ? ARROW_SYMBOLS_C
                    : currentLang === "thymeleaf" ? ARROW_SYMBOLS_THYMELEAF   // → ＜＞ {} <<>>
                    : ARROW_SYMBOLS_JAVA;                            // 矢印グループ
+// spring はどの分岐にも当たらないので、JavaSE と同じ JAVA_SYMBOLS・LINE_SYMBOLS_JAVA・ARROW_SYMBOLS_JAVA になる（v1.22.0）
 const lineArrow = currentLang === "thymeleaf" ? [...lineSymbols, ...arrowSymbols]        // 縦線なし
                                               : [...lineSymbols, "|", ...arrowSymbols];
 // 💡 のリンク先は thymeleaf も Java 側へ落ちる。
@@ -1089,6 +1096,8 @@ const lineArrow = currentLang === "thymeleaf" ? [...lineSymbols, ...arrowSymbols
 //         2段目の先頭には流し込み表示のときだけ見える縦線（.toolrow-joint）を置く（v1.20.0）
 // 描画の最後に updateToolFlow() で流し込み表示（.flow）を判定する（v1.20.0）
 // 言語切替ラジオは toolbox ではなくタイトル行 #langbar へ描画（langbar.innerHTML をクリアして再生成）
+//   並べるのは visibleLangs()（SPD_CONFIG.langs ＋現在の言語・CF-06）
+// 最後に updateHelpLinks()（LK-03）と updateSkeletons()（SK-07）
 ```
 
 矢印ボタンのうち `←`（代入）`→`（送る。Thymeleaf では「送信先・移動先」）`⇒`（入力）`->`（型ヒント）`─⊳`（継承）`---⊳`（実装）は `makeBtn` で `title` 属性にツールチップを設定する。Thymeleaf のシンボルと括弧記号のツールチップは `THYMELEAF_TITLES` / `BRACKET_TITLES` から引く（v1.21.0）。`保存`/`開く` は `makeBtn` ではなく i===1 の分岐で `.act` ボタンとして生成し `doSave()` / `doLoad()` を割り当てる。
@@ -1149,12 +1158,16 @@ HTML：本体スクリプトの前に <script src="spd-config.js"></script> を�
 
 初期化（renderToolbox 呼び出し前）：
   if (typeof SPD_CONFIG !== "undefined" && SPD_CONFIG && SPD_CONFIG.lang
-      && ["java","python","c"].includes(SPD_CONFIG.lang))
+      && LANGS.includes(SPD_CONFIG.lang))
     currentLang = SPD_CONFIG.lang;
+  if (!configLangs().includes(currentLang)) currentLang = configLangs()[0];   // CF-06（v1.22.0）
   renderToolbox(); updateInfo();
+
+configLangs()   SPD_CONFIG.langs のうち LANGS にあるものを LANGS の順で。無い・0件なら LANGS 全部
+visibleLangs()  configLangs() に currentLang を足したもの（LANGS の順）。ラジオはこれを並べる
 ```
 
-`spd-config.js` 例：`var SPD_CONFIG = { lang: "java" };`
+`spd-config.js` 例：`var SPD_CONFIG = { lang: "java" };`、`var SPD_CONFIG = { lang: "java", langs: ["java", "spring", "thymeleaf"] };`
 
 ### 7.13c 自動保存・離脱確認の実装（v1.14.0・SL-06〜09）
 
@@ -1202,10 +1215,10 @@ startAutosave()（初期化の最後、renderToolbox()／updateInfo() の後で�
 
 `beforeunload` の確認は、ブラウザの仕様上、ページを一度もクリック・キー操作していない場合は出ない（編集していれば必ず操作しているので実用上は問題ない）。確認の文言はブラウザ固定で変更できない。
 
-### 7.13d スケルトンの実装（v1.18.0・SK-01〜06）
+### 7.13d スケルトンの実装（v1.18.0・SK-01〜07）
 
 ```
-HTML：<script src="spd-config.js"> の後に <script src="spd-patterns.js"></script> を置く（任意ファイル）
+HTML：定義ファイルは静的な <script src> では読まない（v1.22.0。言語ごとに updateSkeletons() が読み込む）
       タイトル行 .titleright の先頭に <select class="skeleton" id="skeleton" hidden>
 
 parseSkeletons(src) → [{ title, body }]
@@ -1213,11 +1226,25 @@ parseSkeletons(src) → [{ title, body }]
   ├ それ以外の行 → 現在のスケルトンの本文行に追加（最初の ★ より前は捨てる）
   └ 本文の前後の空行（空白・全角空白だけの行を含む）を除いて "\n" で結合。title か body が空なら除外
 
-initSkeletons()（初期化時・renderToolbox / updateInfo の後）
-  ├ SPD_PATTERNS が未定義・空 → 何もしない（セレクトボックスは hidden のまま）
-  ├ skeletons = parseSkeletons(SPD_PATTERNS)。0 件なら何もしない
-  ├ <option value="">スケルトン…</option> と各スケルトン（value＝添字）を追加し hidden を外す
-  └ change：value を控えて "" に戻し blur() → insertSkeleton(添字)
+PATTERN_FILES  { java: "javase-patterns.js", spring: "spring-patterns.js", thymeleaf: "thymeleaf-patterns.js",
+                 python: "python-patterns.js", c: "c-patterns.js" }
+
+updateSkeletons()（renderToolbox の末尾から・v1.22.0）
+  ├ skeletonLang === currentLang → 何もしない（並べ直しは言語が変わったときだけ）
+  ├ skeletonLang = currentLang
+  ├ skeletonCache[lang] がある → showSkeletons(それ) で終わり
+  ├ showSkeletons([])（読み込むまで隠す）。読み込み中（skeletonLoading[lang]）なら終わり
+  ├ window.SPD_PATTERNS = undefined → <script src=PATTERN_FILES[lang]> を head に追加
+  ├ onload：parseSkeletons(window.SPD_PATTERNS)（空・未定義なら []）／onerror：[]
+  │   load はスクリプトの実行直後に起こるので、この時点の SPD_PATTERNS はその言語のもの
+  └ 終わったら skeletonCache[lang] に覚え、<script> を取り除き、
+      まだ skeletonLang === lang のときだけ showSkeletons()
+
+showSkeletons(list)
+  ├ skeletons = list、<select> を空にする。0 件なら hidden にして終わり
+  └ <option value="">スケルトン…</option> と各スケルトン（value＝添字）を追加し hidden を外す
+
+change（ページ読み込み時に1回だけ登録）：value を控えて "" に戻し blur() → insertSkeleton(添字)
 
 insertSkeleton(i)
   ├ 矩形選択中なら cancelSelection()、textRunInfo = null
@@ -1467,7 +1494,7 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | L-20 | 自動保存（SL-06）はブラウザ内の localStorage に保存するため、ファイルとしては見えず、**ブラウザ・プロファイルごとに別**になる（Chrome で書いた自動保存は Edge では復元できない）。ブラウザの閲覧データ（サイトデータ）を消すと失われ、プライベートウィンドウでは閉じた時点で消える。また保存キーにファイルのパスを含めるため、`spd-editor.html` を別のフォルダへ移したり、サーバの URL が変わったりすると前回の自動保存は復元されない。自動保存は1ファイルにつき1件だけで、別の図を編集すると上書きされる。大事な図は必ず「保存」でファイルに保存する |
 | L-21 | `Alt+Export`（EI-13）は `Alt+クリック` を使うため、**Linux のデスクトップ環境（GNOME / KDE など）では Alt+クリックがウィンドウ移動に使われ、ブラウザにクリックが届かない**ことがある。また SPD は罫線記号など非 ASCII 文字を必ず含むので、貼り付け先の `application.properties` は **UTF-8 で保存**する必要がある（STS / Eclipse の古い既定の ISO-8859-1 では `\uXXXX` に変換されたり保存できなかったりする）。コメント行なので Spring Boot の読み込み自体には影響しない |
 | L-22 | 全角文字に**前後とも挟まれた**奇数個の半角（`値x値`・`「a」` など）は、パディング空白をどちらに置いても間に空白が入る（TX-21 では末尾に置き `値x 値` となる。ランが `HEAD_PAD_CHARS` の記号で始まる場合は先頭に置き `値 .青` となる）。また v1.16.0 以前に作った図は、パディングの位置が保存されたマスのまま残る（`. 青` など）。文字入力欄で打ち直すかテキストラン編集で確定し直すと、TX-21 の位置に置き直される（テキストラン編集では、取り出した入力欄にその空白が表示されるので消してから確定する） |
-| L-23 | スケルトン定義（`spd-patterns.js`）は JavaScript のテンプレート文字列なので、本文に `` ` ``・`${`・`\` をそのまま書くと壊れる（`${...}` は式として評価され、`\` はエスケープ文字になる）。Thymeleaf の `${name}` などは `\${name}` と書く。書き損じると構文エラーでファイル全体が読み込まれず、セレクトボックスが表示されなくなる（ブラウザのコンソールにエラーが出る）。また定義はページを開いたときに読むので、ファイルを書き換えたらページを再読み込みする |
+| L-23 | スケルトン定義（`javase-patterns.js` など・SK-02）は JavaScript のテンプレート文字列なので、本文に `` ` ``・`${`・`\` をそのまま書くと壊れる（`${...}` は式として評価され、`\` はエスケープ文字になる）。Thymeleaf の `${name}` などは `\${name}` と書く。書き損じると構文エラーでファイル全体が読み込まれず、セレクトボックスが表示されなくなる（ブラウザのコンソールにエラーが出る）。また定義はその言語に初めて切り替えたときに読み、以後は覚えておく（SK-07）ので、ファイルを書き換えたらページを再読み込みする |
 | L-24 | Eclipse 内（§6.13）で動くかどうかは Eclipse の Browser のエンジン（Windows：Edge / WebView2、mac：WebKit、Linux：WebKitGTK）に依存する。クリップボードを使う Export / Import は、エンジンや Eclipse の設定によっては使えないことがある。また Eclipse 内では自動保存（SL-06）が働かないので、`.spd` ファイルは Eclipse で保存する |
 
 ---
@@ -1530,3 +1557,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.21.0 | 2026-10-13 | spd-editor.html | 変更：**(1) Enter で挿入**（§6.4 TX-04・TX-22・§7.9b）。文字入力欄の Enter（新規入力）を、カーソル位置からの上書きから**カーソル位置への挿入**に変更した。文字列の途中なら「前半＋入力＋後半」で書き直し（半角2文字のマスの途中でも挿入でき、パディング位置も決め直す）、右側は空マスの手前までをずらし、ずらした分は直後の空マスで吸収する。行は折り返さず、右端からはみ出した分は捨てる。挿入後のカーソルは挿入した文字列の直後。従来の上書きは **Shift+Enter** で行う。スタンプボタンとテキストラン編集の Enter は従来どおり。`insertText()`・`findTextRunNoGap()`・`splitTextRun()` を追加。入力欄のプレースホルダーと情報バーの案内を変更。**(2) Thymeleaf 用ツールバー**（§4.1〜§4.4・§7.12）。Thymeleaf モードのボタンを Java と同じものから専用に変更した。`↩` `↪` ｜ `［見出し］` `［小見出し］` `［文字］` `［段落］` `［フォーム］` `［リンク］` `［表（行）］` `［表（列）］` `［画像］` ｜ `│` `─` `└─` `├─` `┬─` `→` `＜＞` `{}` `<<>>` ｜ `行+` 以降は従来どおり。`［］` のボタンは括弧ごとスタンプする（罫線なし）。`＜＞` `{}` `<<>>` は配置後にカーソルを括弧の中央へ置き、続けて Enter で中に追記できる（Shift+クリックで入力欄へ挿入したときも中央）。Thymeleaf では `┬` `┴` `←` `⇒` `─⊳` `---⊳` と制御記号（`◇─` など）を表示しない。表示方法は他の言語と同じ2段表示で、`│` 以降を2段目に並べ、幅が狭くなったら流し込み表示にする。`THYMELEAF_SYMBOLS`・`THYMELEAF_TITLES`・`BRACKET_SYMBOLS`・`BRACKET_TITLES`・`ARROW_SYMBOLS_THYMELEAF` を追加。記号リストに `docs/記号リスト/thymeleaf-symbols.txt` を追加（§4.4b）。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.21.0 に更新 |
 | 1.21.1 | 2026-10-13 | spd-editor.html, 2-java/spd-patterns.js | 変更：**スケルトンの見直し**（§6.12）。`2-java/spd-patterns.js` を 14 種類に更新。「リポジトリ」を「リポジトリ（基本）」（目的・対象・主キーだけ）と「リポジトリ（応用）」に分け、「コントローラー」のメソッドの枝を「マッピング → 目的 → 引数 → 戻り値 → 処理」の順に変更、「入力用テンプレート（Formオブジェクトを受け取る）」を「入力用テンプレート（受取りあり）」に改名。ファイルは BOM なしの UTF-8。root／1-python／2-java／3-C の4ファイルの表示バージョンを 1.21.1 に更新 |
 | 1.21.2 | 2026-10-14 | spd-editor.html | 不具合修正：**Eclipse 内で Import が効かない**（§6.13 EC-07・§7.13e）。Eclipse の画面（WebView2）では、クリップボードの読み取りを許可しても `navigator.clipboard.readText()` が読めず、何も起こらなかった（2026-10-13 に WebView2 が 155 に更新されてから）。Java の `spdGetClipboardText()` があればそれでクリップボードを読む `readClipboardText()` を追加し、`doPaste()` から使う。単体のブラウザでは従来どおり `readText()`。読み取りに失敗したら情報バーに「クリップボードを読み取れませんでした」と出す（従来は何も出なかった）。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.21.2 に更新 |
+| 1.22.0 | 2026-10-29 | spd-editor.html, 2-java/javase-patterns.js, 2-java/spring-patterns.js, 2-java/thymeleaf-patterns.js, 1-python/python-patterns.js, 3-C/c-patterns.js | 機能追加：**(1) JavaSE と Spring**（§2・§4.3・T-02・§7.12）。言語ラジオの「Java」を「**JavaSE**」と表示し、その右に「**Spring**」を追加した（並びは JavaSE / Spring / Thymeleaf / Python / C）。JavaSE の内部の値は `"java"` のままなので、保存済みのファイルや `spd-config.js` はそのまま使える。Spring のツールバー・Export・Import・`Alt+Export`・💡 のリンク先は JavaSE と同じ（`isJavaLang()`）。**(2) スケルトンを言語ごとに切り替える**（§6.12 SK-02・SK-07・§7.13d）。全言語共通の `spd-patterns.js` をやめ、`javase-` / `spring-` / `thymeleaf-` / `python-` / `c-patterns.js` の5つに分けた。どれも同じ変数 `SPD_PATTERNS` を定義するので、言語を切り替えたときにその言語のファイルだけを `<script>` 要素で読み込み、一覧を覚えておく（file:// でも動く）。ファイルが無い・`SPD_PATTERNS` が空・スケルトンが0件ならセレクトボックスを隠す。`2-java/spd-patterns.js` の16種類を JavaSE 4・Spring 6・Thymeleaf 6 に分け、Thymeleaf の題を短くした（「入力用（受取りなし）」など）。`2-java/spd-patterns.js` は削除。**(3) ラジオに出す言語の指定**（§6.10 CF-06・§7.13b）。`spd-config.js` の `langs` に書いた言語のラジオだけを表示する（Eclipse プラグインで JavaSE・Spring・Thymeleaf だけにするため）。`langs` に無い言語のファイルを開いたときは、その言語のラジオも足す。あわせて `applyLoadedJSON()` でも `lang` が `LANGS` にあるときだけ反映するようにした。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.22.0 に更新 |
