@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.22.0 |
+| バージョン | 1.23.0 |
 | 作成日 | 2026-06-28 |
 | 対象ファイル | `spd-editor.html` |
 | 状態 | 開発中 |
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] 📖 💡  SPD Editor  ver. 1.22.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] ❓📖💡  SPD Editor  ver. 1.23.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -63,8 +63,8 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 
 - アプリ最上部の**タイトル行**（`.titlebar`、`justify-content:space-between`）は、左に**言語切替ラジオ**（JavaSE/Spring/Thymeleaf/Python/C・左詰め。`spd-config.js` の `langs` で絞れる・CF-06）と**編集中ファイル名**、右にタイトル「SPD Editor」と現在バージョン `ver. X.Y.Z` を表示する（言語ラジオは v1.9.0 で2段目からタイトル行へ移動）。
 - **ファイル名表示**（`.filename` / `#filename`）は言語ラジオの右・**20px の間隔**をあけた位置に `[sample.json]` の形式で表示する（v1.10.0・SL-04）。ラジオとファイル名は `.titleleft`（`display:flex; gap:20px`）でまとめる。`renderToolbox()` が `#langbar` を作り直してもファイル名が消えないよう、ファイル名要素は `langbar` の外（兄弟要素）に置く。
-- **外部リンクボタン**（`.titleright` / `.helplink`）は、タイトル「SPD Editor」の**左側**に 📖（U+1F4D6）💡（U+1F4A1）の順で並べる（v1.10.8）。タイトルとリンクは `.titleright`（`display:flex; gap:14px`）でまとめる。詳細は §6.11。
-- **スケルトン選択**（`select.skeleton` / `#skeleton`）は 📖 の**左側**に置く（v1.18.0）。選択中の言語のスケルトン定義ファイル（`javase-patterns.js` など）が無いとき・スケルトンが1つも無いときは表示しない（`hidden`）。詳細は §6.12。
+- **外部リンクボタン**（`.titleright` / `.helplink`）は、タイトル「SPD Editor」の**左側**に ❓（U+2753）📖（U+1F4D6）💡（U+1F4A1）の順で並べる（v1.10.8、❓ は v1.23.0）。ボタンは `.helplinks`（`gap:2px`）にまとめ、スケルトン・リンク・タイトルは `.titleright`（`display:flex; gap:14px`）でまとめる。詳細は §6.11。
+- **スケルトン選択**（`select.skeleton` / `#skeleton`）は ❓ の**左側**に置く（v1.18.0）。選択中の言語のスケルトン定義ファイル（`patterns/javase-patterns.js` など）が無いとき・スケルトンが1つも無いときは表示しない（`hidden`）。詳細は §6.12。
 - ツールボックスは2段構成（v1.5.0 で旧3段から変更）。**1段目**は左端に履歴ボタン `↩` `↪`＋縦線、続いて言語別シンボル（横幅に応じて折り返す）。**2段目**は罫線グループ・矢印グループ・特殊ボタン群を縦線で区切って並べる（v1.9.0 で履歴を1段目へ移動、`Export` `Import` `保存` `開く` を2段目の `全消去` の右へ集約）。
 - **保存・開くボタン**は2段目の `Import` の右に横並びで配置する（v1.9.0。旧 v1.5.0 まではツールボックス右端に縦並び）。**クリアボタン**は2段目の操作群の右・`Export` の左に置く。
 - **矩形選択は専用ボタンを持たず、グリッド上のドラッグで行う**（旧 v0.6 までの `□` ボタンは v1.2.0 で廃止）。
@@ -220,7 +220,7 @@ Java 用から例外処理の `〇─try:` `〇─catch:` を除いたもの（v
 
 #### Thymeleaf 用（`THYMELEAF_SYMBOLS`・v1.21.0）
 
-画面の部品を `［］` で囲んだラベルで示す（罫線は付けない）。HTML テンプレートの構成（`└─構成` の下の枝）を書くためのもので、スケルトン（`2-java/thymeleaf-patterns.js` のテンプレート）の表記に合わせている。ツールチップは `THYMELEAF_TITLES` に定義する。v1.21.0 で Java と同じツールバーから置き換えた（旧版では `◇─` などの制御記号を表示していた）。
+画面の部品を `［］` で囲んだラベルで示す（罫線は付けない）。HTML テンプレートの構成（`└─構成` の下の枝）を書くためのもので、スケルトン（`patterns/thymeleaf-patterns.js` のテンプレート）の表記に合わせている。ツールチップは `THYMELEAF_TITLES` に定義する。v1.21.0 で Java と同じツールバーから置き換えた（旧版では `◇─` などの制御記号を表示していた）。
 
 | # | シンボル | 説明（ツールチップ） |
 |---|---------|------|
@@ -585,32 +585,37 @@ mouseup   ドラッグしていた → 選択を確定
 
 ### 6.11 外部リンクボタン（v1.10.8）
 
-タイトル行の「SPD Editor」の左側に、解説ページへ飛ぶ絵文字リンクを2つ置く。
+タイトル行の「SPD Editor」の左側に、解説ページへ飛ぶ絵文字リンクを3つ置く。
 
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
+| LK-00 | ❓ 使い方リンク（v1.23.0） | ❓（U+2753）をクリックすると SPD エディタの使い方のページを開く。ボタンの先頭に置く。**言語によらず固定の1ページ**（`HELP_URL`） | ✅ |
 | LK-01 | 📖 解説リンク | 📖（U+1F4D6）をクリックすると SPD の解説・書き方のページを開く。**言語によらず固定の1ページ**（`GUIDE_URL`） | ✅ |
 | LK-02 | 💡 パターンリンク | 💡（U+1F4A1）をクリックすると SPD の記述パターン紹介ページを開く。**選択中の言語ごとに別ページ**（`PATTERN_URL[currentLang]`） | ✅ |
 | LK-03 | 言語追従 | 言語ラジオの切替・JSON 読込（`applyLoadedJSON`）・`spd-config.js` による起動時設定のいずれでも、💡 のリンク先とツールチップが現在の言語に追従する。いずれも `renderToolbox()` を通るため、その末尾で `updateHelpLinks()` を呼ぶ | ✅ |
 | LK-04 | 別タブで開く | `target="_blank" rel="noopener noreferrer"`。編集中のグリッドを失わないため、同一タブ遷移はしない | ✅ |
-| LK-05 | クリック領域 | `.helplink` を 28×28px の `inline-flex` とし、2つの間隔を 14px あける。ホバー時は背景を `--accent-bg` にして押せることを示す | ✅ |
+| LK-05 | クリック領域 | `.helplink` を 28×28px の `inline-flex` とし、ボタン同士の間隔を 2px にする（`.helplinks`。v1.22.0 までは 14px）。ホバー時は背景を `--accent-bg` にして押せることを示す | ✅ |
 | LK-06 | 絵文字フォント | `.helplink` にのみ `"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji"` を先頭に指定する。`--mono` の日本語フォント群には絵文字の字形が無いため | ✅ |
 
-**リンク先URL**（`spd-editor.html` の `GUIDE_URL` / `PATTERN_URL` を書き換えるだけで変更できる）
+**リンク先URL**（`spd-editor.html` の `DOCS_URL` / `HELP_URL` / `GUIDE_URL` / `PATTERN_URL` を書き換えるだけで変更できる。ページと画像は公開サイトの `https://k-webs.jp/spd/documents/` に集め、**絶対URL**で開くので、リポジトリには置かない。元本は `docs/解説/`。サーバはファイル名の大文字・小文字を区別する）
 
 | ボタン | 言語 | URL | 状態 |
 |--------|------|-----|------|
-| 📖 | （共通） | `https://k-webs.jp/spd/spd-guide.html` | 仮URL（未確定） |
-| 💡 | Java | `https://k-webs.jp/spd/spd-java.html` | 確定 |
-| 💡 | Python | `https://k-webs.jp/spd/spd-python.html` | 仮URL（未確定） |
-| 💡 | C | `https://k-webs.jp/spd/spd-c.html` | 仮URL（未確定） |
+| ❓ | （共通） | `https://k-webs.jp/spd/documents/howto-spdeditor.html` | 確定 |
+| 📖 | （共通） | `https://k-webs.jp/spd/documents/spd-guide.html` | 確定 |
+| 💡 | Java | `https://k-webs.jp/spd/documents/spd-java.html` | 確定 |
+| 💡 | Python | `https://k-webs.jp/spd/documents/spd-python.html` | 確定 |
+| 💡 | C | `https://k-webs.jp/spd/documents/spd-C.html` | 確定 |
 
 ```js
-const GUIDE_URL = "https://k-webs.jp/spd/spd-guide.html";        // 仮URL（未確定）
+const DOCS_URL  = "https://k-webs.jp/spd/documents/";
+const HELP_URL  = DOCS_URL + "howto-spdeditor.html";
+const GUIDE_URL = DOCS_URL + "spd-guide.html";
 const PATTERN_URL = {
-  java:   "https://k-webs.jp/spd/spd-java.html",                 // 確定
-  python: "https://k-webs.jp/spd/spd-python.html",               // 仮URL（未確定）
-  c:      "https://k-webs.jp/spd/spd-c.html"                     // 仮URL（未確定）
+  java:   DOCS_URL + "spd-java.html",
+  spring: DOCS_URL + "spd-java.html",                            // JavaSE と同じページ
+  python: DOCS_URL + "spd-python.html",
+  c:      DOCS_URL + "spd-C.html"
 };
 ```
 
@@ -624,8 +629,8 @@ const PATTERN_URL = {
 
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
-| SK-01 | スケルトン選択 | タイトル行の 📖 の左に**セレクトボックス**を常設する。先頭は見出し「スケルトン…」で、その下に登録順でスケルトンのタイトルを並べる。選ぶと SK-04 の貼り付けを行い、選択は**すぐ見出しへ戻す**（同じスケルトンを続けて何度でも選べる）。選択後はセレクトボックスからフォーカスを外し、矢印キーなどをグリッド操作へ戻す | ✅ |
-| SK-02 | 定義ファイル | エディタと同じフォルダの、**言語ごとのファイル**から読み込む（v1.22.0。`PATTERN_FILES`）：JavaSE＝`javase-patterns.js`、Spring＝`spring-patterns.js`、Thymeleaf＝`thymeleaf-patterns.js`、Python＝`python-patterns.js`、C＝`c-patterns.js`。`<script>` で読むので、**file:// 直開き・サーバ運用の双方で動作**する（`fetch` は file:// では使えない）。ファイルが無いとき・`SPD_PATTERNS` が空のとき・スケルトンが1つも無いときはセレクトボックスを表示しない。同梱は `2-java/` に JavaSE・Spring・Thymeleaf の3つ、`1-python/` に Python、`3-C/` に C（C は今は空）。直下にはファイルを置かないので表示しない。v1.21.2 までの `spd-patterns.js`（全言語共通の1ファイル）は使わない | ✅ |
+| SK-01 | スケルトン選択 | タイトル行の ❓ の左に**セレクトボックス**を常設する。先頭は見出し「スケルトン…」で、その下に登録順でスケルトンのタイトルを並べる。選ぶと SK-04 の貼り付けを行い、選択は**すぐ見出しへ戻す**（同じスケルトンを続けて何度でも選べる）。選択後はセレクトボックスからフォーカスを外し、矢印キーなどをグリッド操作へ戻す | ✅ |
+| SK-02 | 定義ファイル | エディタと同じフォルダの **`patterns/` フォルダ**にある、**言語ごとのファイル**から読み込む（v1.22.0。`PATTERN_FILES`。`patterns/` は v1.23.0。`PATTERN_DIR`）：JavaSE＝`javase-patterns.js`、Spring＝`spring-patterns.js`、Thymeleaf＝`thymeleaf-patterns.js`、Python＝`python-patterns.js`、C＝`c-patterns.js`。`<script>` で読むので、**file:// 直開き・サーバ運用の双方で動作**する（`fetch` は file:// では使えない）。ファイルが無いとき・`SPD_PATTERNS` が空のとき・スケルトンが1つも無いときはセレクトボックスを表示しない。直下・`1-python/`・`2-java/`・`3-C/` の4箇所の `patterns/` に、同じ5ファイルを全言語分置く（C は今は空）。v1.21.2 までの `spd-patterns.js`（全言語共通の1ファイル）は使わない | ✅ |
 | SK-03 | 定義の書式 | グローバル変数 `SPD_PATTERNS` にテンプレート文字列（`` ` `` で囲む）で SPD テキストを書く。**`★` で始まる行がタイトル**、次の `★` までが本文。本文の前後の空行は除き、途中の空行は残す。最初の `★` より前の行は無視する（説明を書ける）。タイトルや本文が空のものは登録しない。本文中の `` ` ``・`${`・`\` は `` \` ``・`\${`・`\\` と書く（JavaScript のテンプレート文字列の規則。L-23） | ✅ |
 | SK-04 | 貼り付け | 本文を Import と同じ規則（`parseSPDText`・EI-05／TX-21）でマス目に変換し、**カーソル位置を左上**として部分Import（EI-08）と同じ**ブロック貼り付け**を行う。貼り付け矩形は一旦クリアし、**既存の内容は確認なしで上書きする**（アンドゥで戻せる。SK-05）。グリッド範囲外ははみ出し切り捨て。`│` の自動補完は貼り付け後に通常どおり働く。矩形選択中なら選択を解除し、編集中のテキストラン情報は破棄する。情報バーに「スケルトン「○○」を貼り付けました」と表示する | ✅ |
 | SK-05 | アンドゥ | 貼り付け前に履歴を保存するので、`↩`／Ctrl+Z で1回で取り消せる | ✅ |
@@ -634,7 +639,7 @@ const PATTERN_URL = {
 
 > **スケルトンの作り方**：本文は**エディタで描いて `Shift+Export`（コメント記号なし・EI-09）したテキスト**をそのまま貼るのが確実。インデントは半角空白2個＝1マスで、手で書くと1個のずれで枝がずれる。Export したテキストは Import と往復できる（EI-05・TX-21）ので、貼り付けると元の図がそのまま再現される。
 
-`spring-patterns.js` の例（`2-java/spring-patterns.js` に同梱）：
+`spring-patterns.js` の例（`patterns/spring-patterns.js` に同梱）：
 
 ```js
 var SPD_PATTERNS = `
@@ -1226,6 +1231,7 @@ parseSkeletons(src) → [{ title, body }]
   ├ それ以外の行 → 現在のスケルトンの本文行に追加（最初の ★ より前は捨てる）
   └ 本文の前後の空行（空白・全角空白だけの行を含む）を除いて "\n" で結合。title か body が空なら除外
 
+PATTERN_DIR    "patterns/"（読み込むときに PATTERN_FILES のファイル名の前に付ける・v1.23.0）
 PATTERN_FILES  { java: "javase-patterns.js", spring: "spring-patterns.js", thymeleaf: "thymeleaf-patterns.js",
                  python: "python-patterns.js", c: "c-patterns.js" }
 
@@ -1558,3 +1564,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.21.1 | 2026-10-13 | spd-editor.html, 2-java/spd-patterns.js | 変更：**スケルトンの見直し**（§6.12）。`2-java/spd-patterns.js` を 14 種類に更新。「リポジトリ」を「リポジトリ（基本）」（目的・対象・主キーだけ）と「リポジトリ（応用）」に分け、「コントローラー」のメソッドの枝を「マッピング → 目的 → 引数 → 戻り値 → 処理」の順に変更、「入力用テンプレート（Formオブジェクトを受け取る）」を「入力用テンプレート（受取りあり）」に改名。ファイルは BOM なしの UTF-8。root／1-python／2-java／3-C の4ファイルの表示バージョンを 1.21.1 に更新 |
 | 1.21.2 | 2026-10-14 | spd-editor.html | 不具合修正：**Eclipse 内で Import が効かない**（§6.13 EC-07・§7.13e）。Eclipse の画面（WebView2）では、クリップボードの読み取りを許可しても `navigator.clipboard.readText()` が読めず、何も起こらなかった（2026-10-13 に WebView2 が 155 に更新されてから）。Java の `spdGetClipboardText()` があればそれでクリップボードを読む `readClipboardText()` を追加し、`doPaste()` から使う。単体のブラウザでは従来どおり `readText()`。読み取りに失敗したら情報バーに「クリップボードを読み取れませんでした」と出す（従来は何も出なかった）。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.21.2 に更新 |
 | 1.22.0 | 2026-10-29 | spd-editor.html, 2-java/javase-patterns.js, 2-java/spring-patterns.js, 2-java/thymeleaf-patterns.js, 1-python/python-patterns.js, 3-C/c-patterns.js | 機能追加：**(1) JavaSE と Spring**（§2・§4.3・T-02・§7.12）。言語ラジオの「Java」を「**JavaSE**」と表示し、その右に「**Spring**」を追加した（並びは JavaSE / Spring / Thymeleaf / Python / C）。JavaSE の内部の値は `"java"` のままなので、保存済みのファイルや `spd-config.js` はそのまま使える。Spring のツールバー・Export・Import・`Alt+Export`・💡 のリンク先は JavaSE と同じ（`isJavaLang()`）。**(2) スケルトンを言語ごとに切り替える**（§6.12 SK-02・SK-07・§7.13d）。全言語共通の `spd-patterns.js` をやめ、`javase-` / `spring-` / `thymeleaf-` / `python-` / `c-patterns.js` の5つに分けた。どれも同じ変数 `SPD_PATTERNS` を定義するので、言語を切り替えたときにその言語のファイルだけを `<script>` 要素で読み込み、一覧を覚えておく（file:// でも動く）。ファイルが無い・`SPD_PATTERNS` が空・スケルトンが0件ならセレクトボックスを隠す。`2-java/spd-patterns.js` の16種類を JavaSE 4・Spring 6・Thymeleaf 6 に分け、Thymeleaf の題を短くした（「入力用（受取りなし）」など）。`2-java/spd-patterns.js` は削除。**(3) ラジオに出す言語の指定**（§6.10 CF-06・§7.13b）。`spd-config.js` の `langs` に書いた言語のラジオだけを表示する（Eclipse プラグインで JavaSE・Spring・Thymeleaf だけにするため）。`langs` に無い言語のファイルを開いたときは、その言語のラジオも足す。あわせて `applyLoadedJSON()` でも `lang` が `LANGS` にあるときだけ反映するようにした。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.22.0 に更新 |
+| 1.23.0 | 2026-10-31 | spd-editor.html, patterns/ | 機能追加：**(1) ❓ 使い方リンク**（§2・§6.11 LK-00）。タイトル行の外部リンクの先頭に ❓（U+2753）を追加し、`howto-spdeditor.html` を開く（`HELP_URL`）。**(2) リンク先の整理**。📖 を `spd-guide.html` に変更し、❓ 📖 💡 のページと画像を公開サイトの `https://k-webs.jp/spd/documents/` に集めて絶対URLで開く（`DOCS_URL`）。C の 💡 は `spd-C.html` に直した。リポジトリの `spd-<lang>.html` などは削除し、元本は `docs/解説/` に置く。**(3) ボタンの間隔**を 14px から 2px に狭めた（`.helplinks`・LK-05）。スケルトン・リンク・タイトルの間は 14px のまま。**(4) スケルトン定義の置き場所**を、エディタと同じフォルダの `patterns/` に集めた（§6.12 SK-02・`PATTERN_DIR`）。直下・`1-python/`・`2-java/`・`3-C/` の4箇所に5ファイルすべてを置くので、どのフォルダから開いても全言語のスケルトンが出る。4ファイルの表示バージョンを 1.23.0 に更新 |
