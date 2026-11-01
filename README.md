@@ -27,7 +27,7 @@ HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、�
 └─"合計= 〇〇" の形式でtotal を表示する
 ```
 
-書き方の詳しい解説は [SPD の解説](https://k-webs.jp/spd/documents/spd-guide.html)、
+書き方の詳しい解説は [SPD の解説](https://k-webs.jp/spd/documents/spd-guide.html)、  
 エディタの操作は [SPD エディタの使い方](https://k-webs.jp/spd/documents/howto-spdeditor.html) を見てください。
 どちらもエディタ右上の 📖・❓ から開けます。
 
