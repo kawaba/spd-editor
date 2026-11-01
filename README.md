@@ -28,7 +28,7 @@ HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、�
 ```
 
 書き方の詳しい解説は [SPD の解説](https://k-webs.jp/spd/documents/spd-guide.html)、  
-エディタの操作は [SPD エディタの使い方](https://k-webs.jp/spd/documents/howto-spdeditor.html) を見てください。
+エディタの操作は [SPD エディタの使い方](https://k-webs.jp/spd/documents/howto-spdeditor.html) を見てください。  
 どちらもエディタ右上の 📖・❓ から開けます。
 
 ## 主な機能
@@ -51,6 +51,8 @@ HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、�
 範囲を選択して Export すると、選択した部分だけを出力します。`Shift` + `Import` は、カーソルの位置へ貼り付けます。
 
 ## 使い方
+
+・操作方法の詳細は[こちら](https://k-webs.jp/spd/documents/howto-spdeditor.html)を見てください。
 
 ### ブラウザで使う
 
