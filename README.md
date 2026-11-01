@@ -1,0 +1,120 @@
+# SPD Editor
+
+SPD（Structured Programming Diagram、構造化プログラム設計図）を、ブラウザの方眼の画面で描いて編集するツールです。
+HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、インストールもサーバーの準備もいりません。
+描いた SPD は罫線文字のテキストとして出力し、ソースコードのコメントとして埋め込めます。
+
+**すぐ使う：<https://k-webs.jp/spd/spd-editor.html>**
+
+## SPD とは
+
+処理の流れを、わかりやすいことばと罫線・記号でツリー状に書く図法です。大枠から細部へ段階的に考える力が身につき、
+プログラムとほぼ一対一に対応するので、書いた SPD を AI エージェントに渡してソースコードへ変換することもできます。
+
+```
+電卓プログラム
+│
+├─合計を入れる変数total に0 を入れておく
+├─合計の計算─↻─while: True
+│              │
+│              ├─変数numberにキーボードから整数を入力する
+│              ├─◇─number は0 である
+│              │        └─ループを脱出する
+│              │
+│              ├─number をコンソールに表示する
+│              └─totalにnumberを加算する
+│
+└─"合計= 〇〇" の形式でtotal を表示する
+```
+
+書き方の詳しい解説は [SPD の解説](https://k-webs.jp/spd/documents/spd-guide.html)、
+エディタの操作は [SPD エディタの使い方](https://k-webs.jp/spd/documents/howto-spdeditor.html) を見てください。
+どちらもエディタ右上の 📖・❓ から開けます。
+
+## 主な機能
+
+- **対応言語**：JavaSE・Spring・Thymeleaf・Python・C。言語を切り替えると、記号のボタンが変わります
+- **かんたん入力**：罫線・記号をボタンで置き、文字はマス目に入力します。縦線 `│` は自動で補います
+- **Export / Import**：SPD を言語に合ったコメント記号付きのテキストにしてクリップボードへコピーし、ソースコードからコピーした SPD を読み込みます
+- **編集**：範囲選択、移動、コピー・貼付け、行やマスの挿入・削除、アンドゥ・リドゥ
+- **スケルトン**：if 文やクラス定義など、よく使う形をセレクトボックスから貼り付けます（C は未登録）
+- **保存**：JSON ファイルへの保存・読み込みのほか、ブラウザ内への自動保存で、閉じてしまった作業を復元できます
+
+### Export のコメント記号
+
+| 操作 | 出力 |
+|------|------|
+| `Export` | Java・Spring・C は `/* */`、Thymeleaf は `<!--/* */-->`、Python は `"""` で囲む |
+| `Shift` + `Export` | コメント記号を付けず、選択範囲をそのまま出力する |
+| `Alt` + `Export` | JavaSE・Spring で、全行の先頭に `#` を付ける（`application.properties` 用） |
+
+範囲を選択して Export すると、選択した部分だけを出力します。`Shift` + `Import` は、カーソルの位置へ貼り付けます。
+
+## 使い方
+
+### ブラウザで使う
+
+上の公開版を開くだけで使えます。
+
+### ローカルで使う
+
+このリポジトリをダウンロードして `spd-editor.html` をブラウザで開きます。
+`patterns/` フォルダ（スケルトン）は同じ場所に置いたままにしてください。
+
+起動時の言語を決めておきたいときは、次のフォルダから開きます。
+
+| フォルダ | 起動時の言語 |
+|----------|--------------|
+| `1-python/` | Python |
+| `2-java/` | JavaSE |
+| `3-C/` | C |
+
+言語は、同じフォルダの `spd-config.js` で決まります。`langs` を書くと、画面に出す言語を絞れます。
+
+```js
+var SPD_CONFIG = { lang: "java", langs: ["java", "spring", "thymeleaf"] };
+```
+
+`lang` に書ける値は `java`（JavaSE）・`spring`・`thymeleaf`・`python`・`c` です。
+
+### VS Code・Eclipse で使う
+
+| 環境 | 対応言語 | 入手先 |
+|------|----------|--------|
+| VS Code | Python・C | 拡張機能ビューで「SPD Editor」を検索（[kawaba/vscode-spd-extension](https://github.com/kawaba/vscode-spd-extension)） |
+| Eclipse | JavaSE・Spring・Thymeleaf | ［ヘルプ］→［新規ソフトウェアのインストール］で `https://kawaba.github.io/eclipse-spd-plugin/` を指定（[kawaba/eclipse-spd-plugin](https://github.com/kawaba/eclipse-spd-plugin)） |
+
+## 動作環境
+
+- **ブラウザ**：Chrome・Edge を推奨します。Firefox・Safari でも使えますが、保存はダウンロード方式になり、前回のフォルダを記憶できません
+- **Export / Import**：ブラウザのクリップボード機能を使います。HTTPS または localhost で開くことを前提としているので、`file://` で動かないときは公開版を使ってください
+- **フォント**：[PlemolJP HS](https://github.com/yuru7/PlemolJP/releases/tag/v3.0.0) を優先して使います。インストールしなくても動きますが、入れておくと罫線がきれいに揃います
+- **保存**：自動保存はブラウザの中だけに残ります。ブラウザごとに別で、サイトデータを消すと失われるので、残したい図は「保存」でファイルにしてください
+
+## リポジトリの構成
+
+```
+spd-editor.html      エディタ本体
+spd-editor-spec.md   仕様書
+LICENSE              ライセンス（EPL-2.0）
+patterns/            スケルトン定義（言語ごとに1ファイル）
+1-python/            Python で起動する一式
+2-java/              JavaSE で起動する一式
+3-C/                 C で起動する一式
+```
+
+`1-python/`・`2-java/`・`3-C/` には、`spd-editor.html`・`patterns/`・`spd-config.js` が入っています。
+
+## 開発するときは
+
+機能の詳細、設計、既知の制限は [仕様書](spd-editor-spec.md) にまとめています。変更するときは次の点に注意してください。
+
+- **同じファイルが4か所にあります**：`spd-editor.html` と `patterns/` は、ルート・`1-python/`・`2-java/`・`3-C/` で内容が同一です。必ず4か所すべてを更新します。違いは `spd-config.js` だけです
+- **`fetch` は使いません**：`file://` で開いても動くように、設定やスケルトンは `<script>` で読み込みます
+- **機能はプレーンテキストで表せるものに限ります**：Export したテキストが成果物なので、下線や色のような装飾は扱いません
+- **バージョンをそろえます**：画面右上の `ver. X.Y.Z` と仕様書のバージョンを一致させ、仕様書の変更履歴に追記します
+- **拡張機能は自動更新されません**：VS Code 拡張機能と Eclipse プラグインはエディタの複製を持っているので、それぞれ同期して公開します
+
+## ライセンス
+
+誰でも無償で使用できます。[Eclipse Public License 2.0](LICENSE) で公開しています。
