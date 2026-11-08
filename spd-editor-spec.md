@@ -693,7 +693,7 @@ SPD を答えさせる課題で、学生が AI の出力を使って解答して
 | LG-09 | 最低限の入力量（`units`） | `spd-core.js` の `countMinUnits(d, lang)`（`cells` なら `countCellsUnits`）で、ボタン（`btn`）と文字（`chr`）に分けて数える。R1 スタンプ（言語の 2 文字以上のボタン）は最長一致で 1 回、R2 スタンプに含まれない単文字の記号（`SPD_BORDER`）は 1 回、R3 `│` はそのマスだけを空けたとき自動補完（`colFill`）で現れれば 0・現れなければ 1、R4 そのほかの文字は 1 字 1（打った空白も 1、パディングの印は 0）、R5 Thymeleaf の括弧は開きで 1 回・閉じは 0、R6 スタンプの一覧は `lang` のもの。迷う場合は少なめに数える | ✅ |
 | LG-10 | 指紋（`h`） | `spdHash(cells)`。空白だけのマスを除き、内容のある左上を (0,0) にそろえ、パディングの印を除いた値の並びから 32 ビットの FNV-1a を作り、8 桁の 16 進で返す。Export の囲み記号や余白の詰め方に左右されないので、自分で Export したものの再 Import を見分けられる（改ざん対策ではない） | ✅ |
 
-> 集計・判定は先生用の別の画面（`spd-log-viewer.html`・未作成）で行う。エディタは記録するだけで、判定の結果は持たない。
+> 集計・判定は先生用の別の画面（ルートの `spd-log-viewer.html`。同じフォルダの `spd-core.js` を読む。設計は `docs/作業ログの設計.md` の 7 章）で行う。エディタは記録するだけで、判定の結果は持たない。
 
 ---
 
@@ -1330,7 +1330,7 @@ getSpdText()（Java → JS）  eclipseLastState = editState() → currentJSON() 
 
 ```
 spd-core.js（spd-editor.html と同じフォルダ。<script src="spd-core.js"> で spd-config.js の次に読む）
-  画面（DOM）に触れない定数と関数だけを置く。エディタと先生用の集計画面（予定）が共に使う
+  画面（DOM）に触れない定数と関数だけを置く。エディタと先生用の集計画面（`spd-log-viewer.html`）が共に使う
   ├ SPD_CORE_VERSION、COLS・ROWS、key・isHalf・isQuote・PAD・unpad・isBlankCell・TABSIZE・expandTabs
   ├ LINE_DOWN・LINE_UP・LINE_UP_CONNECT・SPD_BORDER、記号の一覧（JAVA_SYMBOLS ほか）・LANGS・LANG_NAMES・isJavaLang
   ├ toolSymbols(lang) → { symbols, lines, arrows }（renderToolbox と stampsOf が使う）

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPD 作業ログ集計</title>
+<!--
+  SPD 作業ログ集計（先生用）
+  学生が SPD エディタで保存したファイル（log 付きの JSON）をまとめて読み込み、
+  「実際の入力量 ÷ 最低限の入力量」と外から持ち込んだ量を一覧にする。
+  設計は docs/作業ログの設計.md の 5 章・7 章。サーバーは使わず、読み込んだファイルは外へ送らない。
+  数え方（最低限の入力量・指紋）は spd-editor.html と同じ spd-core.js を使う。
+-->
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --text:#1d2129; --muted:#5f6673; --line:#d9dde3; --head:#eef1f5;
+  --accent:#2f6fdb; --hover:#f0f5ff; --sel:#e3edff;
+  --red:#d33a2c; --yellow:#b88a00; --green:#2e8b57; --blue:#2f6fdb; --gray:#8a919c; --violet:#7b4fc9;
+  --redbg:#fdecea; --yellowbg:#fff6d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181d; --panel:#1e2228; --text:#e4e7ec; --muted:#9aa2ae; --line:#363c45; --head:#262b33;
+    --accent:#6b9cf0; --hover:#24303f; --sel:#2a3a52;
+    --red:#f0705f; --yellow:#e0b43a; --green:#5cc08a; --blue:#6b9cf0; --gray:#8a919c; --violet:#b294f0;
+    --redbg:#3a2220; --yellowbg:#3a3218;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15181d; --panel:#1e2228; --text:#e4e7ec; --muted:#9aa2ae; --line:#363c45; --head:#262b33;
+  --accent:#6b9cf0; --hover:#24303f; --sel:#2a3a52;
+  --red:#f0705f; --yellow:#e0b43a; --green:#5cc08a; --blue:#6b9cf0; --gray:#8a919c; --violet:#b294f0;
+  --redbg:#3a2220; --yellowbg:#3a3218;
+}
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--bg); color:var(--text);
+  font-family:"Yu Gothic UI","Meiryo",system-ui,sans-serif; font-size:14px; line-height:1.5; }
+header{ padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel);
+  display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+header h1{ font-size:17px; margin:0; }
+header .note{ color:var(--muted); font-size:12px; }
+main{ padding:12px 16px 40px; max-width:1400px; margin:0 auto; }
+section{ min-width:0; overflow-wrap:anywhere; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px; margin-bottom:12px; }
+h2{ font-size:15px; margin:0 0 8px; }
+h3{ font-size:14px; margin:12px 0 6px; }
+button, .btn{ font:inherit; padding:4px 12px; border:1px solid var(--line); border-radius:4px;
+  background:var(--head); color:var(--text); cursor:pointer; }
+button:hover, .btn:hover{ border-color:var(--accent); }
+button:disabled{ opacity:.5; cursor:default; }
+input[type=number]{ width:5.5em; font:inherit; padding:2px 4px; background:var(--panel); color:var(--text);
+  border:1px solid var(--line); border-radius:3px; }
+#drop{ border:2px dashed var(--line); border-radius:6px; padding:16px; text-align:center; color:var(--muted); }
+#drop.over{ border-color:var(--accent); background:var(--hover); color:var(--text); }
+#drop .row{ margin-top:8px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.settings{ display:flex; flex-wrap:wrap; gap:6px 20px; align-items:center; }
+.settings label{ min-width:0; }
+.muted{ color:var(--muted); }
+.small{ font-size:12px; }
+.scroll{ overflow-x:auto; }
+table{ border-collapse:collapse; width:100%; }
+td:first-child{ white-space:nowrap; }
+th, td{ border-bottom:1px solid var(--line); padding:4px 8px; text-align:left; vertical-align:top; }
+th{ background:var(--head); font-weight:600; white-space:nowrap; position:sticky; top:0; }
+td.num, th.num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+#list th{ cursor:pointer; user-select:none; }
+#list th .arrow{ color:var(--accent); }
+#list tbody tr{ cursor:pointer; }
+#list tbody tr:hover{ background:var(--hover); }
+#list tbody tr.selected{ background:var(--sel); }
+#list tr.j-red td:first-child{ box-shadow:inset 4px 0 var(--red); }
+#list tr.j-yellow td:first-child{ box-shadow:inset 4px 0 var(--yellow); }
+.judge{ white-space:nowrap; }
+.warn{ color:var(--red); }
+.fname{ display:inline-block; min-width:14em; word-break:break-all; }
+.tag{ display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; border:1px solid currentColor; white-space:nowrap; }
+.c-ext{ color:var(--red); } .c-skel{ color:var(--blue); } .c-reuse{ color:var(--green); }
+.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
+.checks li{ margin:2px 0; }
+.ok{ color:var(--green); } .ng{ color:var(--red); } .na{ color:var(--muted); }
+pre.body{ margin:4px 0; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:4px;
+  font-family:"MS Gothic","Osaka-Mono",monospace; font-size:13px; line-height:1.25; overflow-x:auto; }
+.ops td{ font-size:13px; }
+.ops td.text{ word-break:break-all; }
+.legend{ display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--muted); }
+.legend span::before{ content:"●"; margin-right:3px; color:var(--c); }
+svg.graph{ display:block; width:100%; max-width:900px; }
+svg text{ fill:var(--muted); font-size:11px; }
+.pair{ margin:4px 0; }
+.probs{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px solid var(--line); }
+.probs .item{ display:inline-flex; gap:4px; align-items:center; padding:1px 4px 1px 8px; border:1px solid var(--line); border-radius:12px; font-size:13px; }
+.probs .item button{ padding:0 6px; border:none; background:none; color:var(--muted); }
+.empty{ color:var(--muted); padding:8px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SPD 作業ログ集計</h1>
+  <span class="note">読み込んだファイルはこのブラウザの中だけで扱い、どこにも送りません。</span>
+</header>
+<main>
+
+<section>
+  <div id="drop">
+    提出された SPD ファイル（.json・.spd）を、まとめて、またはフォルダごとここへドラッグしてください。
+    <div class="row">
+      <label class="btn">ファイルを選ぶ<input type="file" id="pickFiles" multiple accept=".json,.spd,.txt,application/json" hidden></label>
+      <label class="btn">フォルダを選ぶ<input type="file" id="pickDir" webkitdirectory multiple hidden></label>
+      <button id="btnClear" disabled>読み込んだものを消す</button>
+      <button id="btnCsv" disabled>CSV に書き出す</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>判定の設定</h2>
+  <div class="settings">
+    <label><input type="checkbox" id="setSkel" checked> スケルトンの使用を許す（許さないときは外部に数える）</label>
+    <label>🔴 外部が最終解答（問題の分を除く）の <input type="number" id="setExt" min="0" step="1"> % 以上</label>
+    <label>🔴 比率が <input type="number" id="setLow" min="0" step="0.05"> 未満</label>
+    <label>🟡 比率が上の値〜 <input type="number" id="setHigh" min="0" step="0.05"> で、</label>
+    <label>手戻り（消した文字＋アンドゥ）が最低限の <input type="number" id="setRework" min="0" step="0.5"> % 未満</label>
+    <label>作業時間に数えない操作の間隔 <input type="number" id="setIdle" min="1" step="1"> 分超</label>
+    <button id="btnReset">初期値に戻す</button>
+  </div>
+  <div class="probs">
+    <b>問題ファイル</b>
+    <label class="btn">追加する<input type="file" id="pickProb" multiple accept=".json,.spd,.txt,application/json" hidden></label>
+    <span id="probList" class="muted small">なし</span>
+  </div>
+  <p class="muted small" style="margin:6px 0 0">
+    一部を示して残りを作らせる問題では、配った問題（.json、または Export したテキスト）をここに読み込んでください。
+    学生が開いた・Import した中身のうち、問題と同じ部分を「問題」として数え、外部に数えません。
+  </p>
+  <p class="muted small" style="margin:8px 0 0">
+    比率＝（打った量＋自分のものの再利用＋スケルトン）÷ 最低限の入力量（問題ファイルがあれば、問題の分を除いた学生が作る分）。単位はボタン 1 回・文字 1 字。
+    最初の授業は判定に使わず、値の分布を見て基準を決めてください。
+  </p>
+</section>
+
+<section id="dupSec" hidden>
+  <h2>同じ名札（log.id）のファイル</h2>
+  <p class="muted small" style="margin:0 0 6px">一方がもう一方のファイルから始めた可能性があります。</p>
+  <div id="dups"></div>
+</section>
+
+<section>
+  <h2 id="listTitle">一覧</h2>
+  <div class="scroll"><table id="list"><thead></thead><tbody></tbody></table></div>
+  <div id="listEmpty" class="empty">まだ何も読み込んでいません。</div>
+</section>
+
+<section id="detail" hidden></section>
+
+</main>
+
+<script src="spd-core.js"></script>
+<script>
+"use strict";
+if (typeof SPD_CORE_VERSION === "undefined"){
+  alert("spd-core.js を読み込めませんでした。spd-log-viewer.html と同じフォルダに spd-core.js を置いてください。");
+  throw new Error("spd-core.js がありません");
+}
+
+/* ===== 設定 ===== */
+const DEFAULTS = { skel: true, ext: 20, low: 1.0, high: 1.1, rework: 2, idle: 5 };
+const SET_KEY = "spd-log-viewer-settings";
+let settings = Object.assign({}, DEFAULTS);
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); } catch(e){}
+const setEls = { skel: "setSkel", ext: "setExt", low: "setLow", high: "setHigh", rework: "setRework", idle: "setIdle" };
+function showSettings(){
+  for (const k in setEls){
+    const el = document.getElementById(setEls[k]);
+    if (el.type === "checkbox") el.checked = !!settings[k]; else el.value = settings[k];
+  }
+}
+function readSettings(){
+  for (const k in setEls){
+    const el = document.getElementById(setEls[k]);
+    if (el.type === "checkbox") settings[k] = el.checked;
+    else { const v = parseFloat(el.value); if (isFinite(v) && v >= 0) settings[k] = v; }
+  }
+  try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch(e){}
+  recompute();
+}
+for (const k in setEls) document.getElementById(setEls[k]).addEventListener("change", readSettings);
+document.getElementById("btnReset").onclick = () => { settings = Object.assign({}, DEFAULTS); showSettings(); readSettings(); };
+showSettings();
+
+/* ===== 読み込み ===== */
+let files = [];          // { name, text }
+let results = [];        // analyze() の結果（files と同じ順）
+let sortKey = "name", sortDir = 1;
+let selected = null;     // 詳細を表示しているファイル名
+
+function addFiles(list){
+  for (const f of list){
+    const i = files.findIndex(g => g.name === f.name);
+    if (i >= 0) files[i] = f; else files.push(f);
+  }
+  recompute();
+}
+function readFileObjs(fs, nameOf){
+  return Promise.all(fs.map(f => f.text().then(text => ({ name: nameOf(f), text }))));
+}
+const wanted = name => /\.(json|spd)$/i.test(name);
+document.getElementById("pickFiles").onchange = e => {
+  readFileObjs([...e.target.files], f => f.name).then(addFiles); e.target.value = "";
+};
+document.getElementById("pickDir").onchange = e => {
+  readFileObjs([...e.target.files].filter(f => wanted(f.name)), f => f.webkitRelativePath || f.name).then(addFiles);
+  e.target.value = "";
+};
+/* フォルダのドロップは webkitGetAsEntry でたどる（相対パスを名前にする） */
+function walkEntry(entry, out, top){
+  return new Promise(res => {
+    if (entry.isFile){
+      if (!top && !wanted(entry.name)){ res(); return; }   // 直接落としたファイルは拡張子を問わない
+      entry.file(f => { out.list.push(f.text().then(text => ({ name: entry.fullPath.replace(/^\//, ""), text }))); res(); }, () => res());
+    } else if (entry.isDirectory){
+      const rd = entry.createReader(), all = [];
+      const next = () => rd.readEntries(es => {
+        if (!es.length){
+          Promise.all(all.map(c => walkEntry(c, out, false))).then(() => res());
+          return;
+        }
+        all.push(...es); next();
+      }, () => res());
+      next();
+    } else res();
+  });
+}
+const dropEl = document.getElementById("drop");
+dropEl.addEventListener("dragover", e => { e.preventDefault(); dropEl.classList.add("over"); });
+dropEl.addEventListener("dragleave", () => dropEl.classList.remove("over"));
+dropEl.addEventListener("drop", e => {
+  e.preventDefault(); dropEl.classList.remove("over");
+  const items = [...(e.dataTransfer.items || [])];
+  const entries = items.map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+  if (entries.length){
+    const out = { list: [] };
+    Promise.all(entries.map(en => walkEntry(en, out, true))).then(() => Promise.all(out.list)).then(addFiles);
+  } else {
+    readFileObjs([...e.dataTransfer.files], f => f.name).then(addFiles);
+  }
+});
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => e.preventDefault());
+document.getElementById("btnClear").onclick = () => { files = []; selected = null; recompute(); };
+
+/* ===== 解析 ===== */
+const U0 = () => ({ btn: 0, chr: 0 });
+const addU = (a, u) => { if (u){ a.btn += u.btn || 0; a.chr += u.chr || 0; } };
+const tot = u => u.btn + u.chr;
+const cellsOfData = d => dataToCells(d || {});
+const hashData = d => spdHash(cellsOfData(d));
+
+/* 保存ファイルを読む。JSON でなければ SPD テキスト（ログなし）とみなす */
+function parseFile(text){
+  const src = String(text).replace(/^﻿/, "");
+  if (/^\s*\{/.test(src)){
+    const obj = JSON.parse(src);
+    return { lang: LANGS.includes(obj.lang) ? obj.lang : "python", data: obj.data || {}, log: obj.log, json: true };
+  }
+  const lines = src.split(/\r?\n/).filter(l => !/^\s*(\/\*|\*\/|"""|'''|<!--\/\*|\*\/-->)\s*$/.test(l))
+                   .map(l => l.replace(/^#  ?/, ""));
+  return { lang: "python", data: cellsToData(parseSPDText(lines.join("\n")).cells), log: null, json: false };
+}
+
+/* ===== 問題ファイル（設計 7.8） ===== */
+const PROB_KEY = "spd-log-viewer-problems";
+let problems = [];       // { name, text, data, log, hash, map（"x,y" → 値）, byVal（値 → [[x, y]...]）, n }
+function makeProblem(f){
+  const p = parseFile(f.text);
+  const map = new Map(), byVal = new Map();
+  for (const k in p.data){
+    const val = p.data[k];
+    if (isBlankCell(val)) continue;
+    const u = unpad(val);
+    map.set(k, u);
+    const [x, y] = k.split(",").map(Number);
+    if (!byVal.has(u)) byVal.set(u, []);
+    byVal.get(u).push([x, y]);
+  }
+  return { name: f.name, text: f.text, data: p.data, log: p.log && Array.isArray(p.log.entries) ? p.log : null,
+           hash: hashData(p.data), map, byVal, n: map.size, units: tot(countMinUnits(p.data, p.lang)) };
+}
+function setProblems(list){
+  problems = [];
+  for (const f of list){
+    try { problems.push(makeProblem(f)); } catch(e){ alert(f.name + " は問題ファイルとして読めません"); }
+  }
+  try { localStorage.setItem(PROB_KEY, JSON.stringify(problems.map(p => ({ name: p.name, text: p.text })))); } catch(e){}
+  renderProblems();
+}
+function renderProblems(){
+  const el = document.getElementById("probList");
+  el.className = problems.length ? "" : "muted small";
+  el.innerHTML = problems.length
+    ? problems.map((p, i) => '<span class="item">' + esc(p.name) + ' <button data-i="' + i + '" title="外す">×</button></span>').join(" ")
+    : "なし";
+  el.querySelectorAll("button").forEach(b => b.onclick = () => {
+    setProblems(problems.filter((p, i) => i !== Number(b.dataset.i)).map(p => ({ name: p.name, text: p.text })));
+    recompute();
+  });
+}
+document.getElementById("pickProb").onchange = e => {
+  const old = problems.map(p => ({ name: p.name, text: p.text }));
+  readFileObjs([...e.target.files], f => f.name).then(list => {
+    const names = new Set(list.map(f => f.name));
+    setProblems(old.filter(f => !names.has(f.name)).concat(list));
+    recompute();
+  });
+  e.target.value = "";
+};
+/* 持ち込んだ中身 body（[x, y, 値] の並び）を問題と照らし合わせ、問題と同じ部分（given）とそれ以外（ext）に分ける。
+   位置はずらしてよい（問題の一部だけを入れた場合も拾う）。マスの値が同じ組を数え、最も多く一致するずれを採る。
+   偶然の一致（─ など）を拾わないよう、一致が 3 マス未満、または問題の 3 割にも中身の半分にも届かないときは一致なしとする */
+function splitByProblems(body, units, lang){
+  if (!problems.length || !Array.isArray(body)) return null;
+  const B = body.filter(c => !isBlankCell(c[2]));
+  let best = null;
+  for (const p of problems){
+    const votes = new Map();
+    for (const [x, y, val] of B){
+      const list = p.byVal.get(unpad(val));
+      if (!list) continue;
+      for (const [px, py] of list){ const k = (px - x) + "," + (py - y); votes.set(k, (votes.get(k) || 0) + 1); }
+    }
+    for (const [k, c] of votes) if (!best || c > best.c) best = { p, k, c };
+  }
+  if (!best || best.c < 3 || (best.c < best.p.n * 0.3 && best.c < B.length * 0.5)) return null;
+  const [dx, dy] = best.k.split(",").map(Number);
+  const matched = B.filter(([x, y, val]) => best.p.map.get((x + dx) + "," + (y + dy)) === unpad(val))
+                   .map(([x, y, val]) => ({ x, y, v: val }));
+  const g = countCellsUnits(matched, lang);
+  const given = { btn: Math.min(g.btn, units.btn), chr: Math.min(g.chr, units.chr) };
+  return { name: best.p.name, p: best.p, given, ext: { btn: units.btn - given.btn, chr: units.chr - given.chr } };
+}
+/* 学生のログが問題ファイルのログを引き継いでいれば、その先頭の部分（先生の作業）の長さ */
+function problemPrefix(log){
+  for (const p of problems){
+    if (!p.log || p.log.id !== log.id) continue;
+    let k = 0;
+    const n = Math.min(p.log.entries.length, log.entries.length);
+    while (k < n && JSON.stringify(p.log.entries[k]) === JSON.stringify(log.entries[k])) k++;
+    if (k) return { k, name: p.name, p };
+  }
+  return null;
+}
+
+/* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
+function analyze(f){
+  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0,
+              typed: U0(), reuse: U0(), skel: U0(), ext: U0(), unk: U0(), given: U0(), split: [], pfx: 0, usedProb: 0, own: 0,
+              del: 0, undo: 0, rework: 0, activeMs: 0, sessions: 0, noLogOpen: false, ide: false,
+              checks: [], warnCount: 0, cat: [], entries: [], data: {}, judge: "", reasons: [] };
+  let file;
+  try { file = parseFile(f.text); }
+  catch(e){ r.error = "JSON として読めません"; r.judge = "err"; return r; }
+  r.lang = file.lang; r.data = file.data;
+  r.min = countMinUnits(file.data, file.lang); r.minTotal = tot(r.min);
+  const log = file.log;
+  if (!log || !Array.isArray(log.entries) || !log.entries.length){
+    r.judge = "nolog"; r.reasons.push(file.json ? "ログがない" : "JSON でない（ログがない）");
+    return r;
+  }
+  r.hasLog = true; r.logId = log.id || null;
+  const es = r.entries = log.entries;
+  const idleMs = settings.idle * 60 * 1000;
+  const snapHashes = new Map();   // それまでに記録された写し（save・snap）の指紋 → "own"（学生）／"prob"（問題の記録）
+  const probByHash = new Map(problems.map(p => [p.hash, p]));
+  const useProb = p => { if (p && p.units > r.usedProb) r.usedProb = p.units; };   // 使った問題の大きさ（最終解答のうち問題の分の上限）
+  const pp = problemPrefix(log);   // 問題ファイルから引き継いだ先頭の記録（先生の作業）は数えない
+  r.pfx = pp ? pp.k : 0;
+  if (pp) useProb(pp.p);
+  let prevT = null, lastCellsBefore = null, lastBeforeIdx = -1, inSeg = false;
+  const nGap = [], inMismatch = [];
+  for (let i = 0; i < es.length; i++){
+    const e = es[i] || {};
+    let cat = "none";
+    if (e.n !== i) nGap.push(i);
+    if (i < r.pfx){
+      if (e.op === "save" && e.snap) snapHashes.set(hashData(e.snap), "prob");
+      if (e.op === "snap" && e.data) snapHashes.set(hashData(e.data), "prob");
+      r.cat.push("prob");
+      continue;
+    }
+    // 作業時間（snap は自動なので操作に数えない）
+    if (e.op === "start"){
+      r.sessions++; prevT = e.t || 0; inSeg = true;
+      if (e.from === "eclipse") r.ide = true;
+      lastCellsBefore = i > 0 ? es[i - 1].cells : null; lastBeforeIdx = i - 1;
+    } else if (e.op !== "snap" && inSeg && typeof e.t === "number"){
+      const gap = e.t - prevT;
+      if (gap > 0 && gap <= idleMs) r.activeMs += gap;
+      prevT = e.t;
+    }
+    const inn = e.in || {};
+    switch (e.op){
+      case "sym": r.typed.btn++; cat = "typed"; break;
+      case "text": case "cancel": {
+        r.typed.btn += inn.btn || 0;
+        r.typed.chr += (inn.key || 0) + (inn.ime || 0);
+        r.del += inn.del || 0;
+        cat = "typed";
+        if (e.op === "text"){
+          const pd = (inn.paste || 0) + (inn.drop || 0);
+          if (pd){ r.ext.chr += pd; cat = "ext"; }
+          // 入力欄の内訳と len の食い違い（4.4）
+          const exp = (e.base || 0) + (inn.key || 0) + (inn.ime || 0) + pd - (inn.del || 0);
+          const tol = Math.max(2, Math.ceil((e.len || 0) * 0.2));
+          if (typeof e.len === "number" && (inn.btn ? exp - e.len > tol : Math.abs(e.len - exp) > tol))
+            inMismatch.push(e.n);
+        }
+        break;
+      }
+      case "paste": addU(r.reuse, e.units); cat = "reuse"; break;
+      case "import": {
+        if (e.self){ addU(r.reuse, e.units); cat = "reuse"; break; }
+        const u = e.units || U0();
+        const ph = probByHash.get(e.h);
+        const sp = ph ? { name: ph.name, p: ph, given: u, ext: U0() } : splitByProblems(e.body, u, r.lang);
+        if (sp){ r.split[i] = sp; useProb(sp.p); addU(r.given, sp.given); addU(r.ext, sp.ext); cat = tot(sp.ext) ? "ext" : "given"; }
+        else { addU(r.ext, u); cat = "ext"; }
+        break;
+      }
+      case "skel":
+        if (settings.skel){ addU(r.skel, e.units); cat = "skel"; } else { addU(r.ext, e.units); cat = "ext"; }
+        break;
+      case "open": case "eclipse": {
+        const u = e.units || U0();
+        if (!tot(u)){ cat = "none"; break; }
+        const inherited = i >= 2 && es[i - 1].op === "start" && (e.op === "eclipse" || e.hasLog);
+        const sh = snapHashes.get(e.h);
+        if (inherited && sh === "own"){ cat = "cont"; }
+        else if (sh === "prob" || probByHash.has(e.h)){                                         // 問題そのもの
+          addU(r.given, u); cat = "given"; useProb(probByHash.get(e.h) || (pp && pp.p));
+        }
+        else if (inherited && e.op === "eclipse" && lastCellsBefore === e.cells && lastBeforeIdx >= r.pfx){ cat = "cont"; }
+        else {
+          const sp = splitByProblems(e.body, u, r.lang);
+          const x = sp ? sp.ext : u;
+          if (sp){ r.split[i] = sp; addU(r.given, sp.given); useProb(sp.p); }
+          if (inherited && e.op === "eclipse"){ addU(r.unk, x); cat = tot(x) ? "unk" : "given"; }   // IDE は保存が記録されないことがある
+          else { addU(r.ext, x); cat = tot(x) ? "ext" : "given"; }
+        }
+        if (e.op === "open" && !e.hasLog && cat !== "given") r.noLogOpen = true;
+        break;
+      }
+      case "undo": r.undo++; break;
+      case "save": if (e.snap) snapHashes.set(hashData(e.snap), "own"); break;
+      case "snap": if (e.data) snapHashes.set(hashData(e.data), "own"); break;
+    }
+    r.cat.push(cat);
+  }
+
+  // 比率と判定
+  // 問題として配った部分は、分子からも分母からも除く（学生が作る分だけで比べる。設計 7.8）。
+  // 問題の分は、入ってきた量・使った問題の大きさ・最低限の小さい方（同じ問題を 2 回開いても 2 倍にしない）
+  r.givenBase = Math.min(tot(r.given), r.usedProb || tot(r.given), r.minTotal);
+  r.own = r.minTotal - r.givenBase;
+  const done = tot(r.typed) + tot(r.reuse) + tot(r.skel);
+  r.ratio = r.own ? done / r.own : null;
+  r.extTotal = tot(r.ext);
+  r.extRate = r.own ? r.extTotal / r.own : null;
+  r.rework = r.del + r.undo;
+
+  // 整合性の確認（7.4）
+  r.checks.push(nGap.length
+    ? { s: "ng", m: "通し番号 n に抜け・乱れがある（" + nGap.length + " か所、最初は " + nGap[0] + " 件目）" }
+    : { s: "ok", m: "通し番号 n に抜けはない（" + es.length + " 件）" });
+  r.checks.push(inMismatch.length
+    ? { s: "ng", m: "入力欄の内訳と確定した文字数が大きく食い違う確定がある（n=" + inMismatch.slice(0, 8).join(", ") + (inMismatch.length > 8 ? " ほか" : "") + "）" }
+    : { s: "ok", m: "入力欄の内訳と確定した文字数は、おおよそ一致する" });
+  if (r.ide){
+    r.checks.push({ s: "na", m: "最後の保存とファイルの中身の照合は行わない（IDE の中の作業を含む。IDE のメニューや自動保存による保存は記録されないため）" });
+  } else {
+    let ls = null;
+    for (let i = es.length - 1; i >= 0; i--) if (es[i].op === "save"){ ls = es[i]; break; }
+    if (!ls) r.checks.push({ s: "ng", m: "保存の記録がない" });
+    else if (!ls.snap) r.checks.push({ s: "ng", m: "最後の保存（n=" + ls.n + "）に写しがない" });
+    else if (hashData(ls.snap) === hashData(file.data)) r.checks.push({ s: "ok", m: "最後の保存（n=" + ls.n + "）の写しとファイルの中身が一致する" });
+    else r.checks.push({ s: "ng", m: "最後の保存（n=" + ls.n + "）の写しとファイルの中身が一致しない（保存後に書き換えた疑い）" });
+  }
+  if (log.ver !== 1) r.checks.push({ s: "ng", m: "ログの形式の版が " + log.ver + "（この画面は 1 に対応）" });
+  if (tot(r.unk)) r.checks.push({ s: "ng", m: "IDE で開いた時点の内容が前の記録と一致しない（" + tot(r.unk)
+                                        + " 単位）。保存せずに閉じた場合にも起こるので、外部には数えていない" });
+  if (pp) r.checks.push({ s: "na", m: "先頭の " + pp.k + " 件（n=0〜" + (pp.k - 1) + "）は問題ファイル " + pp.name + " の記録なので数えない" });
+  r.warnCount = r.checks.filter(c => c.s === "ng").length;
+
+  if (!r.minTotal){ r.judge = ""; r.reasons.push("解答が空"); return r; }
+  if (!r.own){ r.judge = ""; r.reasons.push("問題のまま（学生が作った部分がない）"); return r; }
+  const red = [];
+  if (r.extRate * 100 >= settings.ext) red.push("外部が " + pct(r.extRate) + "（" + settings.ext + "% 以上）");
+  if (r.ratio < settings.low) red.push("比率が " + fx(r.ratio) + "（" + settings.low + " 未満）");
+  if (red.length){ r.judge = "red"; r.reasons = red; }
+  else if (r.noLogOpen){ r.judge = "nolog"; r.reasons.push("ログのないファイルを開いている"); }
+  else if (r.ratio <= settings.high && r.rework / r.own * 100 < settings.rework){
+    r.judge = "yellow"; r.reasons.push("比率が " + fx(r.ratio) + " で、手戻りが " + pct(r.rework / r.own) + "（弱い目安）");
+  }
+  if (r.givenBase) r.reasons.push("問題の分 " + r.givenBase + " 単位を除いて比べた");
+  return r;
+}
+
+/* ===== 表示の部品 ===== */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fx = v => v == null ? "—" : v.toFixed(2);
+const pct = v => v == null ? "—" : (v * 100).toFixed(v * 100 < 10 ? 1 : 0) + "%";
+const bc = u => u.btn + " / " + u.chr;
+function fmtTime(ms){
+  const m = Math.round(ms / 60000);
+  return m < 60 ? m + " 分" : Math.floor(m / 60) + " 時間 " + (m % 60) + " 分";
+}
+const JUDGE = { red: "🔴", yellow: "🟡", nolog: "⚪", err: "⚠", "": "" };
+const JUDGE_ORDER = { red: 0, yellow: 1, nolog: 2, err: 3, "": 4 };
+const JUDGE_NAME = { red: "強い証拠あり", yellow: "確認を勧める", nolog: "ログなし", err: "読めない", "": "" };
+
+const COLS_DEF = [
+  { k: "judge", t: "判定", v: r => JUDGE_ORDER[r.judge], h: r => '<span class="judge" title="' + esc(r.reasons.join("\n")) + '">' + JUDGE[r.judge] + "</span>" },
+  { k: "name", t: "ファイル", v: r => r.name, h: r => '<span class="fname">' + esc(r.name) + "</span>" },
+  { k: "min", t: "最低限", num: 1, v: r => r.minTotal, h: r => r.error ? "" : bc(r.min) },
+  { k: "typed", t: "入力", num: 1, v: r => tot(r.typed), h: r => r.hasLog ? bc(r.typed) : "" },
+  { k: "ratio", t: "比率", num: 1, v: r => r.ratio == null ? -1 : r.ratio, h: r => r.hasLog ? fx(r.ratio) : "" },
+  { k: "ext", t: "外部", num: 1, v: r => r.extTotal || 0, h: r => r.hasLog ? r.extTotal + "（" + pct(r.extRate) + "）" : "" },
+  { k: "skel", t: "スケルトン", num: 1, v: r => tot(r.skel), h: r => r.hasLog ? bc(r.skel) : "" },
+  { k: "given", t: "問題", num: 1, v: r => tot(r.given), h: r => r.hasLog ? bc(r.given) : "" },
+  { k: "rework", t: "手戻り", num: 1, v: r => r.rework || 0, h: r => r.hasLog ? r.del + " 字・" + r.undo + " 回" : "" },
+  { k: "time", t: "作業時間", num: 1, v: r => r.activeMs, h: r => r.hasLog ? fmtTime(r.activeMs) : "" },
+  { k: "sess", t: "作業回数", num: 1, v: r => r.sessions, h: r => r.hasLog ? r.sessions : "" },
+  { k: "warn", t: "整合", num: 1, v: r => r.warnCount, h: r => r.hasLog ? (r.warnCount ? '<span class="warn" title="' + esc(r.checks.filter(c => c.s === "ng").map(c => c.m).join("\n")) + '">⚠ ' + r.warnCount + "</span>" : "✓") : "" },
+];
+const SUB = { min: "ボタン / 文字", typed: "ボタン / 文字", skel: "ボタン / 文字", given: "ボタン / 文字", ext: "単位（割合）" };
+
+function recompute(){
+  results = files.map(analyze);
+  document.getElementById("btnClear").disabled = !files.length;
+  document.getElementById("btnCsv").disabled = !files.length;
+  renderList(); renderDups();
+  if (selected && !results.some(r => r.name === selected)) selected = null;
+  renderDetail();
+}
+
+function renderList(){
+  const thead = document.querySelector("#list thead"), tbody = document.querySelector("#list tbody");
+  document.getElementById("listEmpty").hidden = !!results.length;
+  document.getElementById("list").hidden = !results.length;
+  const cnt = k => results.filter(r => r.judge === k).length;
+  document.getElementById("listTitle").textContent = results.length
+    ? "一覧（" + results.length + " 件：🔴 " + cnt("red") + "・🟡 " + cnt("yellow") + "・⚪ " + cnt("nolog") + "）" : "一覧";
+  thead.innerHTML = "<tr>" + COLS_DEF.map(c => '<th data-k="' + c.k + '"' + (c.num ? ' class="num"' : "") + ">" + c.t
+    + (sortKey === c.k ? ' <span class="arrow">' + (sortDir > 0 ? "▲" : "▼") + "</span>" : "")
+    + (SUB[c.k] ? '<br><span class="muted small">' + SUB[c.k] + "</span>" : "") + "</th>").join("") + "</tr>";
+  thead.querySelectorAll("th").forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = 1; }
+    renderList();
+  });
+  const col = COLS_DEF.find(c => c.k === sortKey);
+  const rows = results.slice().sort((a, b) => {
+    const x = col.v(a), y = col.v(b);
+    const d = typeof x === "string" ? x.localeCompare(y, "ja", { numeric: true }) : x - y;
+    return d * sortDir || a.name.localeCompare(b.name, "ja", { numeric: true });
+  });
+  tbody.innerHTML = rows.map(r => '<tr class="j-' + (r.judge || "none") + (r.name === selected ? " selected" : "")
+    + '" data-name="' + esc(r.name) + '">' + COLS_DEF.map(c => "<td" + (c.num ? ' class="num"' : "") + ">" + c.h(r) + "</td>").join("") + "</tr>").join("");
+  tbody.querySelectorAll("tr").forEach(tr => tr.onclick = () => {
+    selected = tr.dataset.name; renderList(); renderDetail();
+    document.getElementById("detail").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+/* 同じ名札：どの操作まで同じで、どこから分かれたか（7.3） */
+function renderDups(){
+  const by = {};
+  for (const r of results) if (r.logId) (by[r.logId] = by[r.logId] || []).push(r);
+  const sj = r => r._sj || (r._sj = r.entries.map(e => JSON.stringify(e)));
+  // 組ごとに全部の対を比べる。問題ファイルのログを引き継いだものは、問題の記録とそのあとの開始・読み込み（2 件）
+  // までは誰でも同じになりうるので、それより先まで同じ対だけを出す
+  const blocks = [];
+  for (const [id, g] of Object.entries(by)){
+    if (g.length < 2) continue;
+    const lines = [];
+    for (let i = 0; i < g.length; i++) for (let j = i + 1; j < g.length; j++){
+      const a = g[i], b = g[j], A = sj(a), B = sj(b);
+      const n = Math.min(A.length, B.length);
+      let k = 0;
+      while (k < n && A[k] === B[k]) k++;
+      const base = Math.max(a.pfx, b.pfx);
+      if (base && k <= base + 2) continue;
+      const msg = k === 0 ? "最初の操作から違う"
+        : k === n && A.length === B.length ? "ログが完全に同じ（" + n + " 件）"
+        : "n=0〜" + (k - 1) + " の " + k + " 件が同じで、n=" + k + " から分かれる";
+      lines.push('<div class="pair">・<b>' + esc(a.name) + "</b> と <b>" + esc(b.name) + "</b>：" + msg
+        + (base ? '<span class="muted small">（うち先頭の ' + base + " 件は問題ファイルの記録）</span>" : "") + "</div>");
+    }
+    if (lines.length) blocks.push('<div><span class="muted small">id ' + esc(id) + "</span>" + lines.join("") + "</div>");
+  }
+  document.getElementById("dupSec").hidden = !blocks.length;
+  document.getElementById("dups").innerHTML = blocks.join("");
+}
+
+/* ===== 詳細 ===== */
+const OP_NAME = { start: "開始", open: "ファイルを開く", eclipse: "IDE で開く", save: "保存", lang: "言語",
+  sym: "ボタン", text: "確定", cancel: "破棄", erase: "消しゴム", eraseIn: "その場削除", insCell: "マス挿入",
+  insRow: "行挿入", delRow: "行削除", selDel: "範囲削除", move: "移動", undo: "元に戻す", redo: "やり直す",
+  clear: "全消去", copy: "コピー", paste: "貼付け", export: "Export", import: "Import", skel: "スケルトン", snap: "写し" };
+const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録" };
+const FROM_NAME = { new: "起動", autosave: "自動保存から復元", eclipse: "IDE", open: "ログ付きのファイルを開く" };
+const isBulk = (e, cat) => cat !== "prob" && (["import", "paste", "skel", "open", "eclipse"].includes(e.op) || cat === "ext");
+let onlyBulk = false;
+const shown = {};        // 中身を開いている操作（ファイル名 + n）
+
+function inText(i){
+  if (!i) return "";
+  const p = [];
+  if (i.key) p.push("打鍵 " + i.key); if (i.ime) p.push("IME " + i.ime); if (i.paste) p.push("貼付け " + i.paste);
+  if (i.drop) p.push("ドロップ " + i.drop); if (i.btn) p.push("ボタン " + i.btn); if (i.del) p.push("消去 " + i.del);
+  return p.join("・");
+}
+const uText = u => u ? "ボタン " + u.btn + "・文字 " + u.chr : "";
+function opDesc(e){
+  switch (e.op){
+    case "start": return (FROM_NAME[e.from] || e.from || "") + "　" + (e.at || "") + "　ver. " + (e.ver || "?") + "　" + (LANG_NAMES[e.lang] || e.lang || "");
+    case "open": return (e.file || "") + "　" + uText(e.units) + (e.hasLog ? "　ログ付き" : "　ログなし");
+    case "eclipse": return (e.json ? "JSON" : "テキスト") + "　" + uText(e.units);
+    case "save": return e.file || "（IDE）";
+    case "lang": return (LANG_NAMES[e.from] || e.from) + " → " + (LANG_NAMES[e.to] || e.to);
+    case "sym": return esc(e.s) + "　(" + e.x + "," + e.y + ")";
+    case "text": return '<span class="muted">' + ({ ins: "挿入", over: "上書き", run: "ラン編集" }[e.mode] || e.mode) + " (" + e.x + "," + e.y + ")</span> "
+      + esc(e.text || "") + ' <span class="muted small">' + (e.len || 0) + " 字" + (e.base ? "（元 " + e.base + "）" : "") + "／" + inText(e.in) + "</span>";
+    case "cancel": return inText(e.in);
+    case "erase": case "eraseIn": case "insCell": return "(" + e.x + "," + e.y + ")";
+    case "insRow": case "delRow": return "y=" + e.y;
+    case "selDel": return (e.r || []).join(",") + "　" + uText(e.units);
+    case "move": return (e.r || []).join(",") + " → " + (e.to || []).join(",");
+    case "clear": return "消す前 " + e.before + " マス";
+    case "copy": return (e.r || []).join(",") + "　" + uText(e.units);
+    case "paste": return "(" + e.x + "," + e.y + ")　" + uText(e.units) + (e.self ? "" : "　（直前のコピーとは別）");
+    case "export": return (e.part ? "部分" : "全体") + "・" + e.kind + "　" + uText(e.units);
+    case "import": return (e.part ? "部分 (" + e.x + "," + e.y + ")" : "全体") + "　" + uText(e.units) + "　" + e.lines + " 行"
+      + (e.mark ? "　記号 " + esc(e.mark) : "") + (e.self ? "　自分の Export" : "　外から");
+    case "skel": return esc(e.name || "") + "　" + uText(e.units);
+    default: return "";
+  }
+}
+/* body（[x, y, 値] の並び）や data をテキストにする（全角 1 マス、半角は 1 マスに 2 字まで） */
+function cellsText(list){
+  let maxX = 0, maxY = 0; const m = {};
+  for (const [x, y, v] of list){ m[x + "," + y] = v; if (x > maxX) maxX = x; if (y > maxY) maxY = y; }
+  const lines = [];
+  for (let y = 0; y <= maxY; y++){
+    let s = "";
+    for (let x = 0; x <= maxX; x++){
+      const v = unpad(m[x + "," + y] || "");
+      s += !v ? "　" : ([...v].length === 1 && isHalf(v) ? v + " " : v);
+    }
+    lines.push(s.replace(/[\s　]+$/, ""));
+  }
+  return lines.join("\n");
+}
+const dataList = d => Object.keys(d).map(k => { const [x, y] = k.split(",").map(Number); return [x, y, d[k]]; });
+
+function renderDetail(){
+  const sec = document.getElementById("detail");
+  const r = results.find(x => x.name === selected);
+  if (!r){ sec.hidden = true; sec.innerHTML = ""; return; }
+  sec.hidden = false;
+  let h = '<h2>' + (JUDGE[r.judge] ? JUDGE[r.judge] + " " : "") + esc(r.name) + "</h2>";
+  if (r.error){ sec.innerHTML = h + '<p class="ng">' + esc(r.error) + "</p>"; return; }
+  h += '<p class="muted small" style="margin:0">' + (LANG_NAMES[r.lang] || r.lang)
+     + (r.logId ? "　id " + esc(r.logId) : "") + (r.reasons.length ? "　" + esc(r.reasons.join("／")) : "") + "</p>";
+
+  // 要約
+  const row = (name, u, note, noPct) => "<tr><td>" + name + '</td><td class="num">' + u.btn + '</td><td class="num">' + u.chr
+    + '</td><td class="num">' + tot(u) + '</td><td class="num">' + (noPct ? "" : r.own ? pct(tot(u) / r.own) : "—") + '</td><td class="muted small">' + (note || "") + "</td></tr>";
+  h += "<h3>要約</h3><div class=\"scroll\"><table><thead><tr><th></th><th class=\"num\">ボタン</th><th class=\"num\">文字</th><th class=\"num\">計</th><th class=\"num\">" + (r.givenBase ? "学生の分に対して" : "最低限に対して") + "</th><th></th></tr></thead><tbody>"
+    + row("最低限の入力量", r.min, "最終解答から数えた量" + (r.givenBase ? "。うち問題の分 " + r.givenBase + " 単位、学生が作る分 " + r.own + " 単位" : ""), !!r.givenBase)
+    + (r.hasLog ? row("打った量", r.typed, "ボタン・Shift+ボタン・打鍵・IME（破棄した分も含む）")
+      + row("自分のものの再利用", r.reuse, "セルの貼り付け・自分の Export の再 Import")
+      + row("スケルトン", r.skel, settings.skel ? "" : "（使用を許さない設定なので外部に数えている）")
+      + row('<span class="c-given">問題</span>', r.given, "配った問題と同じ部分（開いた・Import した中身のうち）。比率には入れない", true)
+      + row('<span class="c-ext">外から持ち込んだ量</span>', r.ext, "外からの Import・ファイルを開く・IDE で開く・入力欄への貼り付け")
+      + (tot(r.unk) ? row('<span class="c-unk">要確認</span>', r.unk, "IDE で開いた内容が前の記録と一致しない") : "") : "")
+    + "</tbody></table></div>";
+  if (r.hasLog){
+    h += '<p style="margin:6px 0">比率 <b>' + fx(r.ratio) + "</b>　手戻り " + r.del + " 字・アンドゥ " + r.undo + " 回（" + (r.givenBase ? "学生の分" : "最低限") + "の " + (r.own ? pct(r.rework / r.own) : "—")
+      + "）　作業時間 " + fmtTime(r.activeMs) + "　作業回数 " + r.sessions + "</p>";
+    h += "<h3>整合性の確認</h3><ul class=\"checks\">" + r.checks.map(c => '<li class="' + c.s + '">' + ({ ok: "✓", ng: "⚠", na: "－" }[c.s]) + " " + esc(c.m) + "</li>").join("") + "</ul>";
+    h += "<h3>経過</h3>" + graph(r);
+    // 操作の一覧
+    h += '<h3>操作の一覧</h3><label class="small"><input type="checkbox" id="onlyBulk"' + (onlyBulk ? " checked" : "") + "> まとめて入った操作と持ち込みだけ</label>";
+    h += '<div class="scroll"><table class="ops"><thead><tr><th class="num">n</th><th class="num">時間</th><th>操作</th><th>内容</th><th class="num">マス</th></tr></thead><tbody>';
+    let seg = 0;
+    r.entries.forEach((e, i) => {
+      if (e.op === "start" && i >= r.pfx) seg++;
+      const cat = r.cat[i];
+      if (onlyBulk && !isBulk(e, cat)) return;
+      const tag = CAT_NAME[cat] ? ' <span class="tag c-' + cat + '">' + CAT_NAME[cat] + "</span>" : "";
+      const sk = r.name + "#" + i;
+      const body = e.body || e.snap || e.data;
+      const tog = body ? ' <button class="small" data-sk="' + esc(sk) + '">' + (shown[sk] ? "閉じる" : "中身") + "</button>" : "";
+      const t = typeof e.t === "number" ? Math.floor(e.t / 60000) + ":" + String(Math.floor(e.t / 1000) % 60).padStart(2, "0") : "";
+      h += '<tr><td class="num">' + esc(e.n) + '</td><td class="num">' + (seg > 1 ? '<span class="muted small">' + seg + "回目 </span>" : "") + t + "</td><td>"
+        + esc(OP_NAME[e.op] || e.op) + tag + '</td><td class="text">' + opDesc(e)
+        + (r.split[i] ? '　<span class="c-given small">問題 ' + tot(r.split[i].given) + " 単位" + (r.split[i].name ? "（" + esc(r.split[i].name) + "）" : "") + "</span>" : "") + tog
+        + (shown[sk] ? '<pre class="body">' + esc(cellsText(e.body ? e.body : dataList(body))) + "</pre>" : "") + '</td><td class="num">' + esc(e.cells ?? "") + "</td></tr>";
+    });
+    h += "</tbody></table></div>";
+  }
+  h += '<h3>最終解答</h3><pre class="body">' + esc(cellsText(dataList(r.data))) + "</pre>";
+  sec.innerHTML = h;
+  const ob = document.getElementById("onlyBulk");
+  if (ob) ob.onchange = () => { onlyBulk = ob.checked; renderDetail(); };
+  sec.querySelectorAll("button[data-sk]").forEach(b => b.onclick = () => { shown[b.dataset.sk] = !shown[b.dataset.sk]; renderDetail(); });
+}
+
+/* 経過のグラフ：横軸は作業時間（間隔が長いところは詰める）、縦軸はマス数。まとめて入った時点に印 */
+function graph(r){
+  const idleMs = settings.idle * 60 * 1000;
+  const pts = [], marks = [], bounds = [];
+  let x = 0, prevT = 0, maxY = 1;
+  r.entries.forEach((e, i) => {
+    if (i < r.pfx) return;
+    if (e.op === "start"){ prevT = e.t || 0; if (i > r.pfx) bounds.push(x); }
+    else if (e.op !== "snap" && typeof e.t === "number"){
+      const g = e.t - prevT; if (g > 0 && g <= idleMs) x += g; prevT = e.t;
+    }
+    const y = e.cells || 0; if (y > maxY) maxY = y;
+    pts.push([x, y]);
+    const c = r.cat[i];
+    if (c === "ext" || c === "skel" || c === "reuse" || c === "cont" || c === "unk" || c === "given") marks.push([x, y, c, e]);
+  });
+  const W = 800, H = 220, L = 44, R = 10, T = 10, B = 26;
+  const maxX = Math.max(x, 60000);
+  const sx = v => L + v / maxX * (W - L - R), sy = v => T + (1 - v / maxY) * (H - T - B);
+  let path = "";
+  // 階段状に描く（マス数は操作の時点で変わるので、次の操作までは横ばい）
+  pts.forEach(([px, py], i) => {
+    const X = sx(px).toFixed(1), Y = sy(py).toFixed(1);
+    path += i ? "H" + X + "V" + Y : "M" + X + " " + Y;
+  });
+  const color = { ext: "var(--red)", skel: "var(--blue)", reuse: "var(--green)", cont: "var(--gray)", unk: "var(--yellow)", given: "var(--violet)" };
+  const ticks = [];
+  const stepMin = Math.max(1, Math.ceil(maxX / 60000 / 8));
+  for (let m = 0; m * 60000 <= maxX; m += stepMin) ticks.push(m);
+  let s = '<svg viewBox="0 0 ' + W + " " + H + '" class="graph" role="img" aria-label="マス数の経過">';
+  s += '<line x1="' + L + '" y1="' + sy(0) + '" x2="' + (W - R) + '" y2="' + sy(0) + '" stroke="var(--line)"/>';
+  s += '<line x1="' + L + '" y1="' + T + '" x2="' + L + '" y2="' + sy(0) + '" stroke="var(--line)"/>';
+  s += '<text x="' + (L - 6) + '" y="' + (T + 8) + '" text-anchor="end">' + maxY + '</text><text x="' + (L - 6) + '" y="' + sy(0) + '" text-anchor="end">0</text>';
+  for (const m of ticks) s += '<text x="' + sx(m * 60000) + '" y="' + (H - 8) + '" text-anchor="middle">' + m + "分</text>";
+  for (const b of bounds) s += '<line x1="' + sx(b) + '" y1="' + T + '" x2="' + sx(b) + '" y2="' + sy(0) + '" stroke="var(--gray)" stroke-dasharray="4 3"/>';
+  s += '<path d="' + path + '" fill="none" stroke="var(--text)" stroke-width="1.5"/>';
+  for (const [mx, my, c, e] of marks)
+    s += '<circle cx="' + sx(mx).toFixed(1) + '" cy="' + sy(my).toFixed(1) + '" r="4.5" fill="' + color[c] + '"><title>n=' + e.n + " " + (OP_NAME[e.op] || e.op) + "（" + CAT_NAME[c] + "）</title></circle>";
+  s += "</svg>";
+  s += '<div class="legend"><span style="--c:var(--red)">外部</span><span style="--c:var(--blue)">スケルトン</span><span style="--c:var(--green)">再利用</span><span style="--c:var(--violet)">問題</span><span style="--c:var(--gray)">自分の続き</span><span style="--c:var(--yellow)">要確認</span><span class="muted" style="--c:transparent">破線は作業の区切り。操作の間隔が ' + settings.idle + " 分を超えたところは詰めている</span></div>";
+  return s;
+}
+
+/* ===== CSV ===== */
+document.getElementById("btnCsv").onclick = () => {
+  const head = ["ファイル", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
+    "外部ボタン", "外部文字", "外部の割合（学生の分に対して）", "スケルトンボタン", "スケルトン文字", "問題ボタン", "問題文字", "再利用ボタン", "再利用文字",
+    "消した文字", "アンドゥ", "作業時間（分）", "作業回数", "整合の警告", "ログID"];
+  const q = v => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const rows = results.map(r => [r.name, JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
+    r.hasLog ? r.typed.btn : "", r.hasLog ? r.typed.chr : "", r.hasLog && r.ratio != null ? r.ratio.toFixed(3) : "",
+    r.hasLog ? r.ext.btn : "", r.hasLog ? r.ext.chr : "", r.hasLog && r.extRate != null ? r.extRate.toFixed(3) : "",
+    r.hasLog ? r.skel.btn : "", r.hasLog ? r.skel.chr : "", r.hasLog ? r.given.btn : "", r.hasLog ? r.given.chr : "", r.hasLog ? r.reuse.btn : "", r.hasLog ? r.reuse.chr : "",
+    r.hasLog ? r.del : "", r.hasLog ? r.undo : "", r.hasLog ? (r.activeMs / 60000).toFixed(1) : "", r.hasLog ? r.sessions : "",
+    r.hasLog ? r.warnCount : "", r.logId || ""]);
+  const csv = "﻿" + [head, ...rows].map(a => a.map(q).join(",")).join("\r\n") + "\r\n";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = "spd-log-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+try { const saved = JSON.parse(localStorage.getItem(PROB_KEY) || "[]"); if (saved.length) setProblems(saved); } catch(e){}
+renderProblems();
+recompute();
+</script>
+</body>
+</html>
