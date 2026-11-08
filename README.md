@@ -39,6 +39,7 @@ HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、�
 - **編集**：範囲選択、移動、コピー・貼付け、行やマスの挿入・削除、アンドゥ・リドゥ
 - **スケルトン**：if 文やクラス定義など、よく使う形をセレクトボックスから貼り付けます（C は未登録）
 - **保存**：JSON ファイルへの保存・読み込みのほか、ブラウザ内への自動保存で、閉じてしまった作業を復元できます
+- **作業ログ**：内容を変える操作を、保存ファイルの中に記録します。画面には何も表示しません（[先生用：作業ログの集計](#先生用作業ログの集計)）
 
 ### Export のコメント記号
 
@@ -61,7 +62,7 @@ HTML・CSS・JavaScript だけで作った1つの HTML ファイルなので、�
 ### ローカルで使う
 
 このリポジトリをダウンロードして `spd-editor.html` をブラウザで開きます。
-`patterns/` フォルダ（スケルトン）は同じ場所に置いたままにしてください。
+`spd-core.js`（共通の処理）と `patterns/` フォルダ（スケルトン）は、同じ場所に置いたままにしてください。`spd-core.js` が無いと、エディタは止まります。
 
 起動時の言語を決めておきたいときは、次のフォルダから開きます。
 
@@ -86,6 +87,26 @@ var SPD_CONFIG = { lang: "java", langs: ["java", "spring", "thymeleaf"] };
 | VS Code | Python・C | 拡張機能ビューで「SPD Editor」を検索（[kawaba/vscode-spd-extension](https://github.com/kawaba/vscode-spd-extension)） |
 | Eclipse | JavaSE・Spring・Thymeleaf | ［ヘルプ］→［新規ソフトウェアのインストール］で `https://kawaba.github.io/eclipse-spd-plugin/` を指定（[kawaba/eclipse-spd-plugin](https://github.com/kawaba/eclipse-spd-plugin)） |
 
+## 先生用：作業ログの集計
+
+**集計画面：<https://k-webs.jp/spd/spd-log-viewer.html>**
+
+SPD を答えさせる課題で、学生が AI の出力を使っていないかを確かめるための画面です。
+エディタは、ボタンや文字の入力、Import、貼り付けなどの操作を、保存ファイル（`.json`・`.spd`）の中に記録しています。
+集計画面に提出ファイルをまとめて（フォルダごとでも）読み込むと、次のことが一覧で分かります。
+
+- 解答を作るのに最低限必要な入力の量と、実際に打った量の比率
+- 打たずに外から入ってきた量（外からの Import、ログのないファイルを開く、入力欄への貼り付けなど）
+- 同じ記録を持つファイル（他人のファイルから始めた可能性）
+
+1 件ずつの詳しい経過も見られ、一覧は CSV に書き出せます。一部を示して残りを作らせる問題では、
+配った問題ファイルを読み込むと、問題と同じ部分を外部に数えずに比べます。
+
+- 読み込んだファイルはブラウザの中だけで扱い、どこにも送りません
+- 判定は AI の利用を決めつけるものではありません。疑わしい解答に気づき、本人に説明を求めるきっかけとして使ってください
+- 記録を取ることは、事前に学生に知らせてください
+- ローカルで使うときは、`spd-log-viewer.html` と同じ場所に `spd-core.js` を置きます
+
 ## 動作環境
 
 - **ブラウザ**：Chrome・Edge を推奨します。Firefox・Safari でも使えますが、保存はダウンロード方式になり、前回のフォルダを記憶できません
@@ -97,6 +118,8 @@ var SPD_CONFIG = { lang: "java", langs: ["java", "spring", "thymeleaf"] };
 
 ```
 spd-editor.html      エディタ本体
+spd-core.js          共通の処理（エディタと集計画面が読み込む）
+spd-log-viewer.html  先生用の作業ログ集計画面
 spd-editor-spec.md   仕様書
 LICENSE              ライセンス（EPL-2.0）
 patterns/            スケルトン定義（言語ごとに1ファイル）
@@ -105,13 +128,13 @@ patterns/            スケルトン定義（言語ごとに1ファイル）
 3-C/                 C で起動する一式
 ```
 
-`1-python/`・`2-java/`・`3-C/` には、`spd-editor.html`・`patterns/`・`spd-config.js` が入っています。
+`1-python/`・`2-java/`・`3-C/` には、`spd-editor.html`・`spd-core.js`・`patterns/`・`spd-config.js` が入っています。
 
 ## 開発するときは
 
 機能の詳細、設計、既知の制限は [仕様書](spd-editor-spec.md) にまとめています。変更するときは次の点に注意してください。
 
-- **同じファイルが4か所にあります**：`spd-editor.html` と `patterns/` は、ルート・`1-python/`・`2-java/`・`3-C/` で内容が同一です。必ず4か所すべてを更新します。違いは `spd-config.js` だけです
+- **同じファイルが4か所にあります**：`spd-editor.html`・`spd-core.js`・`patterns/` は、ルート・`1-python/`・`2-java/`・`3-C/` で内容が同一です。必ず4か所すべてを更新します。違いは `spd-config.js` だけです
 - **`fetch` は使いません**：`file://` で開いても動くように、設定やスケルトンは `<script>` で読み込みます
 - **機能はプレーンテキストで表せるものに限ります**：Export したテキストが成果物なので、下線や色のような装飾は扱いません
 - **バージョンをそろえます**：画面右上の `ver. X.Y.Z` と仕様書のバージョンを一致させ、仕様書の変更履歴に追記します
