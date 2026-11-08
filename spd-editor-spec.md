@@ -3,9 +3,9 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.24.0 |
+| バージョン | 1.25.0 |
 | 作成日 | 2026-06-28 |
-| 対象ファイル | `spd-editor.html` |
+| 対象ファイル | `spd-editor.html`、`spd-core.js`（v1.25.0） |
 | 状態 | 開発中 |
 | 前バージョン | `old-version/spd-editor-spec-v0.6.md`（v0.6、旧仕様書は old-version/ に格納） |
 
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] ❓📖💡  SPD Editor  ver. 1.24.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] ❓📖💡  SPD Editor  ver. 1.25.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -140,6 +140,7 @@ cellClipboard = {
 - `lang`：選択中の言語（`"java"` / `"python"` / `"c"`）
 - `data`：グリッドデータ（`autoSet` は保存しない）
 - 半角2文字のマスのうち、パディング（TX-21）のスロットは印 `\u001F`（`PAD`）で保存する（v1.24.0。JSON では `"\u001f"` と書かれる）。v1.23.0 以前のファイルではパディングも半角空白 `" "` で保存されており、読み込むと打った空白として扱う（EI-15）
+- `log`：作業ログ（v1.25.0・§6.14）。`{ "ver": 1, "id": "…", "entries": [ … ] }`。v1.24.0 以前のエディタは `lang` と `data` しか読まないので、ログ付きのファイルも開ける（保存し直すとログは消える）。自動保存（SL-06）と Eclipse の `.spd`（EC-05）にも同じ `log` を入れる
 
 ---
 
@@ -673,6 +674,26 @@ var SPD_PATTERNS = `
 | EC-07 | Import のクリップボード読み取り（v1.21.2） | Java の `spdGetClipboardText()` があればそれでクリップボードの文字列を読む（`readClipboardText()`）。無ければ従来どおり `navigator.clipboard.readText()`。Eclipse（WebView2）では許可ダイアログで許可しても `readText()` が読めないことがあるため。読み取りに失敗したら情報バーに「クリップボードを読み取れませんでした」と出す | ✅ |
 
 > Java 側の関数（`spdGetInitialText` / `spdNotifyChanged` / `spdRequestSave` / `spdGetClipboardText`）は、存在を確かめてから呼ぶ（`typeof window.spdXxx === "function"`）。約束事を変えるときは、プラグインの `SpdBrowser.java` と同時に直す。
+> v1.25.0 から、プラグインの `web/` にも `spd-core.js` を置く（`editor.html` と同じフォルダ）。
+
+### 6.14 作業ログ（v1.25.0）
+
+SPD を答えさせる課題で、学生が AI の出力を使って解答していないかを先生が確かめられるよう、内容を変える操作を記録し、保存ファイルに入れる。設計と判定の考え方は `docs/作業ログの設計.md`（ローカル専用）にある。記録は**防ぐためではなく、怪しい解答に気づくきっかけ**として使う（記録を取ることは事前に学生に知らせる）。画面には何も表示しない。
+
+| No. | 機能 | 仕様 | 状態 |
+|-----|------|------|------|
+| LG-01 | 記録の置き場所 | 保存の JSON（§3.5）・自動保存（SL-06）・Eclipse の保存用の内容（EC-05）に `log`（`ver`・`id`・`entries`）として入れる。`id` はログの名札で、ログを作り始めたときに `crypto.randomUUID()` で作る。各記録は `n`（通し番号）・`t`（直近の `start` からの経過ミリ秒）・`op`（種類）・`cells`（操作後のマスの数）と、種類ごとの項目を持つ | ✅ |
+| LG-02 | 作業の区切り（`start`） | 起動したとき（`from: "new"`）、自動保存から復元したとき（`"autosave"`。自動保存のログを引き継ぐ）、Eclipse・VS Code から読み込んだとき（`"eclipse"`。ファイルのログがあれば引き継ぐ。IDE の中の作業はすべてこれで始まる）、ログ付きのファイルを開いたとき（`"open"`）に記録する。`at`（開始時刻）・`ver`（`SPD_CORE_VERSION`）・`lang` を持つ | ✅ |
+| LG-03 | ファイルを開く（`open`・`eclipse`） | ログ付きのファイルを開くと、そのファイルのログ（`id` を含む）を引き継いで続きを書く（昨日の続きを今日書くため）。ログの無いファイルなら今のログを続ける。どちらも、開いた内容の最低限の入力量 `units`・指紋 `h`・中身 `body` と、`hasLog`・`logId`（ファイルのログの `id`、無ければ `null`）を残す。Eclipse からの読み込み（`loadSpd`）は `eclipse` として `json`（JSON だったか）・`units`・`h`・`body` を残す | ✅ |
+| LG-04 | グリッドへの入力 | ボタンで記号・スタンプを置いたとき `sym`（`s`・`x`・`y`）。Enter／Shift+Enter で確定したとき `text`（`x`・`y`・`mode`＝`"ins"`／`"over"`／`"run"`、`text`、`len`＝文字数、`in`＝LG-05。テキストラン編集では初めから入っていた文字数 `base` も）。入力欄の中身を確定せずに捨てたとき（ESC・別のマスのクリック・ダブルクリックでの編集開始・`─` ボタン）、何か打っていれば `cancel`（`in`） | ✅ |
+| LG-05 | 入力欄の内訳（`in`） | 入力欄で起きたことを起きたその場で数える。`key`＝直接入力した文字数（`input` の `insertText`）、`ime`＝IME で確定した文字数（`compositionend`。変換中は数えない）、`paste`・`drop`＝貼り付け・ドロップで入った文字数、`btn`＝Shift+ボタン（TX-20）の回数、`del`＝消した文字数（選択して置き換えた分を含む）。テキストラン編集で初めから入っている文字列は数えない | ✅ |
+| LG-06 | 編集 | `erase`・`eraseIn`・`insCell`（`x`・`y`）、`insRow`・`delRow`（`y`）、`selDel`（`r`＝矩形 `[x1,y1,x2,y2]`・`units`＝消した分）、`move`（`r`・`to`）、`undo`・`redo`、`clear`（`before`＝消す前のマスの数）。内容が変わらないとき（空マスでの消しゴムなど）は記録しない | ✅ |
+| LG-07 | まとめて入る操作 | `copy`（`r`・`units`・`h`）、`paste`（`x`・`y`・`units`・`h`・`self`＝直前の `copy` と同じ指紋か）、`export`（`part`・`kind`＝`"cmt"`／`"plain"`／`"props"`・`units`・`h`）、`import`（`part`・`x`・`y`・`lines`・`units`・`h`・`mark`＝取り除いたコメント記号・`self`＝この作業中に Export した指紋と一致したか。`self` が `false` なら `body` も）、`skel`（`name`・`units`） | ✅ |
+| LG-08 | 保存と写し | 保存したとき `save`（`file`＝ファイル名・`snap`＝その時点の `data`）。保存先が決まってから記録するので、ファイルには `save` まで入る。Eclipse・VS Code では、画面の「保存」ボタンと Ctrl+S（`requestEclipseSave()`）で記録し（`file` は `null`）、IDE のメニューからの保存は画面を通らないので記録されない。`getSpdText()` は編集のたびにも呼ばれる（VS Code の文書の更新、Eclipse のビューの保管）ので記録しない。50 操作ごと、または操作があれば 5 分ごとに `snap`（`data`） | ✅ |
+| LG-09 | 最低限の入力量（`units`） | `spd-core.js` の `countMinUnits(d, lang)`（`cells` なら `countCellsUnits`）で、ボタン（`btn`）と文字（`chr`）に分けて数える。R1 スタンプ（言語の 2 文字以上のボタン）は最長一致で 1 回、R2 スタンプに含まれない単文字の記号（`SPD_BORDER`）は 1 回、R3 `│` はそのマスだけを空けたとき自動補完（`colFill`）で現れれば 0・現れなければ 1、R4 そのほかの文字は 1 字 1（打った空白も 1、パディングの印は 0）、R5 Thymeleaf の括弧は開きで 1 回・閉じは 0、R6 スタンプの一覧は `lang` のもの。迷う場合は少なめに数える | ✅ |
+| LG-10 | 指紋（`h`） | `spdHash(cells)`。空白だけのマスを除き、内容のある左上を (0,0) にそろえ、パディングの印を除いた値の並びから 32 ビットの FNV-1a を作り、8 桁の 16 進で返す。Export の囲み記号や余白の詰め方に左右されないので、自分で Export したものの再 Import を見分けられる（改ざん対策ではない） | ✅ |
+
+> 集計・判定は先生用の別の画面（`spd-log-viewer.html`・未作成）で行う。エディタは記録するだけで、判定の結果は持たない。
 
 ---
 
@@ -681,7 +702,7 @@ var SPD_PATTERNS = `
 ### 7.1 実装方針
 
 - **言語・環境**：HTML / CSS / JavaScript（バニラ JS）。外部ライブラリ・フレームワークなし
-- **配布形式**：単一の HTML ファイル。ブラウザで直接開いて動作する
+- **配布形式**：HTML ファイル（`spd-editor.html`）と、同じフォルダの `spd-core.js`（v1.25.0・§7.13f）。ブラウザで直接開いて動作する。`spd-core.js` が無いと「spd-core.js を読み込めませんでした」と表示して止まる
 - **対象ブラウザ**：モダンブラウザ（Chrome / Firefox / Safari / Edge）
 - **クリップボード API**：Export/Import に `navigator.clipboard` を使用（HTTPS または localhost 環境推奨）
 
@@ -1305,6 +1326,46 @@ getSpdText()（Java → JS）  eclipseLastState = editState() → currentJSON() 
 
 変更の検知を自動保存（§7.13c）と同じく**内容の比較**で行うのは、`data` を書き換える経路が多く、編集操作ごとに通知を差し込むと漏れるため。Java から JS へファイル内容を渡すときは、Java 側で JS の文字列を組み立てず、`spdGetInitialText()` で JS から取りに来る（エスケープ漏れを避けるため）。
 
+### 7.13f 共通の処理 spd-core.js と作業ログの実装（v1.25.0・LG-01〜10）
+
+```
+spd-core.js（spd-editor.html と同じフォルダ。<script src="spd-core.js"> で spd-config.js の次に読む）
+  画面（DOM）に触れない定数と関数だけを置く。エディタと先生用の集計画面（予定）が共に使う
+  ├ SPD_CORE_VERSION、COLS・ROWS、key・isHalf・isQuote・PAD・unpad・isBlankCell・TABSIZE・expandTabs
+  ├ LINE_DOWN・LINE_UP・LINE_UP_CONNECT・SPD_BORDER、記号の一覧（JAVA_SYMBOLS ほか）・LANGS・LANG_NAMES・isJavaLang
+  ├ toolSymbols(lang) → { symbols, lines, arrows }（renderToolbox と stampsOf が使う）
+  ├ isTextCell(x, y, d)・colFill(x, d)（d＝マスのデータ。エディタは colFill(x, data)）
+  ├ isOpenSide・HEAD_PAD_CHARS・padAtHead、parseSPDText(text)
+  ├ cellsToData(cells, ox, oy)・dataToCells(d, r)
+  ├ stampsOf(lang)・countMinUnits(d, lang)・countCellsUnits(cells, lang)（LG-09）
+  └ spdHash(cells)（LG-10）
+エディタのスクリプトの冒頭：SPD_CORE_VERSION が無ければ alert して止める
+
+作業ログ（spd-editor.html の初期化の直前）
+  workLog = { ver, id, entries }、logT0（直近の start の時刻）
+  startLog(log, from)：log が { id: 文字列, entries: 配列 } なら引き継ぎ、無ければ newLogId() で作る → logOp("start")
+                       exportHashes・lastCopyHash を空にする
+  logOp(op, info)：{ n, t, op, ...info, cells } を entries に積む。start・snap・save 以外は opsSinceSnap を数え、
+                   SNAP_OPS（50）で takeSnap()。save で数え直し。setInterval(30 秒) で SNAP_MS（5 分）を過ぎていれば takeSnap()
+  logSave(file)：logOp("save", { file, snap: data の写し })
+  logOpen(obj, file)：ログ付きなら startLog(obj.log, "open") → logOp("open", { units, hasLog, logId, h, body })
+  入力欄：beforeinput で値と選択範囲を控え、input の inputType で capIn（key・paste・drop・del）を数える。
+          insertCompositionText は数えず、compositionend の data で ime。insertIntoCap で btn・del
+  logText(x, y, mode, text)：logOp("text", { x, y, mode, text, len, base?, in: takeIn() })
+  discardCap()：capIn が 0 でなければ logOp("cancel", { in })
+
+記録を加えた場所（どれも変更の後）
+  applyTool（sym）、cap の keydown Enter（text）・Escape（cancel）、マウス・キーボードで入力欄を空にする所（cancel）
+  eraseAndShift・eraseInPlace・insertCell・insertRow・deleteRow・moveSelection・deleteSelection
+  copyCells・pasteCells・doCopy（export）・doPaste（import）・insertSkeleton（skel）・clearAll・undo・redo
+  言語ラジオ（lang）・doSave（save）・requestEclipseSave（save）・doLoad（open）・restoreAutosave（start）・loadSpd（start・eclipse）
+  currentJSON・autosaveNow：{ lang, data, log } を書く
+  stripCommentMarks：戻り値に mark（"/*"・'"""'・"<!--/*"・"#"・null）を加えた
+  applyLoadedJSON：成功したら読み込んだオブジェクトを返す（従来は true）
+```
+
+`saveHistory()` に記録を足さず、変更の後に `logOp()` を呼ぶのは、`saveHistory()` は変更の前に呼ばれ、操作の種類も変わった量も分からないため。共通の処理を別ファイルにしたのは、集計画面が同じ数え方を使うため（`file://` で開くとエディタを `iframe` に入れて関数を呼ぶ方法は使えず、写すと処理がずれていく）。
+
 ### 7.14 アンドゥ・リドゥの実装
 
 ```
@@ -1445,7 +1506,7 @@ expandTabs(s)                       // TABSIZE = 4（Eclipse の Java 既定に�
 
 ## 8. 設定パラメータ
 
-ファイル先頭の定数を変更することで動作を調整できる。
+ファイル先頭の定数を変更することで動作を調整できる。`COLS`・`ROWS`・`TABSIZE` は v1.25.0 から `spd-core.js` にある。
 
 ```js
 const COLS  = 90;   // 横のマス数（v1.13.0 で 80 から拡張）
@@ -1509,6 +1570,7 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | L-22 | 全角文字に**前後とも挟まれた**奇数個の半角（`値x値`・`「a」` など）は、パディング空白をどちらに置いても間に空白が入る（TX-21 では末尾に置き `値x 値` となる。ランが `HEAD_PAD_CHARS` の記号で始まる場合は先頭に置き `値 .青` となる）。また v1.16.0 以前に作った図は、パディングの位置が保存されたマスのまま残る（`. 青` など）。文字入力欄で打ち直すかテキストラン編集で確定し直すと、TX-21 の位置に置き直される（テキストラン編集では、取り出した入力欄にその空白が表示されるので消してから確定する） |
 | L-23 | スケルトン定義（`javase-patterns.js` など・SK-02）は JavaScript のテンプレート文字列なので、本文に `` ` ``・`${`・`\` をそのまま書くと壊れる（`${...}` は式として評価され、`\` はエスケープ文字になる）。Thymeleaf の `${name}` などは `\${name}` と書く。書き損じると構文エラーでファイル全体が読み込まれず、セレクトボックスが表示されなくなる（ブラウザのコンソールにエラーが出る）。また定義はその言語に初めて切り替えたときに読み、以後は覚えておく（SK-07）ので、ファイルを書き換えたらページを再読み込みする |
 | L-24 | Eclipse 内（§6.13）で動くかどうかは Eclipse の Browser のエンジン（Windows：Edge / WebView2、mac：WebKit、Linux：WebKitGTK）に依存する。クリップボードを使う Export / Import は、エンジンや Eclipse の設定によっては使えないことがある。また Eclipse 内では自動保存（SL-06）が働かないので、`.spd` ファイルは Eclipse で保存する |
+| L-25 | 作業ログ（§6.14）は保存ファイルの中の普通の JSON なので、知識があれば書き換えられる。また、AI の出力を見ながら手で打ち込まれると、入力の量からは区別できない（記録は防ぐためのものではない）。v1.23.0 以前に保存したファイルのパディング（半角空白）は打った空白として数えるので、そのファイルを開いた `open` の `units` は少し多めに出る |
 
 ---
 
@@ -1573,3 +1635,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.22.0 | 2026-10-29 | spd-editor.html, 2-java/javase-patterns.js, 2-java/spring-patterns.js, 2-java/thymeleaf-patterns.js, 1-python/python-patterns.js, 3-C/c-patterns.js | 機能追加：**(1) JavaSE と Spring**（§2・§4.3・T-02・§7.12）。言語ラジオの「Java」を「**JavaSE**」と表示し、その右に「**Spring**」を追加した（並びは JavaSE / Spring / Thymeleaf / Python / C）。JavaSE の内部の値は `"java"` のままなので、保存済みのファイルや `spd-config.js` はそのまま使える。Spring のツールバー・Export・Import・`Alt+Export`・💡 のリンク先は JavaSE と同じ（`isJavaLang()`）。**(2) スケルトンを言語ごとに切り替える**（§6.12 SK-02・SK-07・§7.13d）。全言語共通の `spd-patterns.js` をやめ、`javase-` / `spring-` / `thymeleaf-` / `python-` / `c-patterns.js` の5つに分けた。どれも同じ変数 `SPD_PATTERNS` を定義するので、言語を切り替えたときにその言語のファイルだけを `<script>` 要素で読み込み、一覧を覚えておく（file:// でも動く）。ファイルが無い・`SPD_PATTERNS` が空・スケルトンが0件ならセレクトボックスを隠す。`2-java/spd-patterns.js` の16種類を JavaSE 4・Spring 6・Thymeleaf 6 に分け、Thymeleaf の題を短くした（「入力用（受取りなし）」など）。`2-java/spd-patterns.js` は削除。**(3) ラジオに出す言語の指定**（§6.10 CF-06・§7.13b）。`spd-config.js` の `langs` に書いた言語のラジオだけを表示する（Eclipse プラグインで JavaSE・Spring・Thymeleaf だけにするため）。`langs` に無い言語のファイルを開いたときは、その言語のラジオも足す。あわせて `applyLoadedJSON()` でも `lang` が `LANGS` にあるときだけ反映するようにした。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.22.0 に更新 |
 | 1.23.0 | 2026-10-31 | spd-editor.html, patterns/ | 機能追加：**(1) ❓ 使い方リンク**（§2・§6.11 LK-00）。タイトル行の外部リンクの先頭に ❓（U+2753）を追加し、`howto-spdeditor.html` を開く（`HELP_URL`）。**(2) リンク先の整理**。📖 を `spd-guide.html` に変更し、❓ 📖 💡 のページと画像を公開サイトの `https://k-webs.jp/spd/documents/` に集めて絶対URLで開く（`DOCS_URL`）。C の 💡 は `spd-C.html` に直した。リポジトリの `spd-<lang>.html` などは削除し、元本は `docs/解説/` に置く。**(3) ボタンの間隔**を 14px から 2px に狭めた（`.helplinks`・LK-05）。スケルトン・リンク・タイトルの間は 14px のまま。**(4) スケルトン定義の置き場所**を、エディタと同じフォルダの `patterns/` に集めた（§6.12 SK-02・`PATTERN_DIR`）。直下・`1-python/`・`2-java/`・`3-C/` の4箇所に5ファイルすべてを置くので、どのフォルダから開いても全言語のスケルトンが出る。4ファイルの表示バージョンを 1.23.0 に更新 |
 | 1.24.0 | 2026-11-03 | spd-editor.html | 機能追加：**パディングを印で保存し、Export で取り除く**（§3.5・TX-21・EI-11・EI-15・§7.9・§7.10b・§7.15）。グリッドの都合で入るパディング（TX-21）を、半角空白ではなく印 `\u001F`（`PAD`）としてマスに保存する（表示は空白）。Export は**言語モードに関係なく**印を取り除くので、`<<"、"で連結>>` が `<<"、" で連結>>` に、`<<"M月d日">>` が `<<"M月d 日">>` になって、Thymeleaf のコード生成で書式として扱われない問題や、文字列の中に空白が混じる問題が直る。テキストランの取り出し（`unpadHalfRun`）も印を取り除くだけにした。これにより、全角文字の直後に打った空白（`f"合計 {total}円"`）がパディングとみなされて入力欄で消えていた問題も直る。Import は同じ位置に印を入れる。v1.23.0 以前のファイルの半角空白は、打った空白として残す。開発中に作った Thymeleaf の `<<…>>` だけを推測で処理する方式（`unpadFormat()`）は採らなかった。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.24.0 に更新 |
+| 1.25.0 | 2026-11-08 | spd-editor.html, spd-core.js | 機能追加：**作業ログ**（§6.14 LG-01〜10・§3.5・§7.13f）。SPD を答えさせる課題で AI の出力を使っていないかを先生が確かめられるよう、内容を変える操作を記録し、保存ファイル・自動保存・Eclipse の `.spd` に `log`（`ver`・`id`・`entries`）として入れる。記号・スタンプ（`sym`）、文字の確定（`text`。入力欄で直接打った・IME で確定した・貼り付けた・ドロップした・消した文字数の内訳 `in` 付き）、入力の破棄（`cancel`）、編集（`erase` ほか）、セルのコピー・貼り付け、Export・Import（指紋 `h` で自分の Export の再 Import かを `self` に記録し、外からのものは中身 `body` も残す）、スケルトン、全消去、言語の切り替え、ファイルを開く・保存、50 操作か 5 分ごとの写し（`snap`）を記録する。ログ付きのファイルを開くと、そのログを引き継いで続きを書く。画面には何も表示しない。**共通の処理を `spd-core.js` に切り出した**（§7.1・§7.13f・§8）。記号の一覧、`colFill`（マスのデータを引数で受け取る形にした）、`parseSPDText`、パディングの判定と、新しく作った最低限の入力量の数え方（`countMinUnits`）・指紋（`spdHash`）を置き、先生用の集計画面（予定）からも使う。`spd-editor.html` と同じフォルダに置く（無いとエディタは止まる）。`renderToolbox` は言語ごとのボタンの並びを `toolSymbols()` から取る。root／1-python／2-java／3-C の4箇所に `spd-editor.html` と `spd-core.js` を置く。表示バージョンを 1.25.0 に更新 |
