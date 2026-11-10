@@ -3,7 +3,7 @@
 | 項目 | 内容 |
 |------|------|
 | 文書名 | SPD 入力ツール 仕様書 |
-| バージョン | 1.26.0 |
+| バージョン | 1.27.0 |
 | 作成日 | 2026-06-28 |
 | 対象ファイル | `spd-editor.html`、`spd-core.js`（v1.25.0） |
 | 状態 | 開発中 |
@@ -37,7 +37,7 @@ SPD（構造化プログラミング図）を Web ブラウザ上で対話的に
 ## 2. 画面構成
 
 ```
- [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] ❓📖💡  SPD Editor  ver. 1.26.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
+ [JavaSE○][Spring○][Thymeleaf○][Python●][C○]  [sample.json]  [スケルトン…▼] ❓📖💡  SPD Editor  ver. 1.27.0  ← タイトル行（左:言語ラジオ＋ファイル名／右:スケルトン＋外部リンク＋タイトル）
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ ツールボックス                                                              │
 │  行1: [↩][↪] │ [◇─][└─else][↻─for:][↻─while:][break][continue]…            │
@@ -684,7 +684,7 @@ SPD を答えさせる課題で、学生が AI の出力を使って解答して
 | No. | 機能 | 仕様 | 状態 |
 |-----|------|------|------|
 | LG-01 | 記録の置き場所 | 保存の JSON（§3.5）・自動保存（SL-06）・Eclipse の保存用の内容（EC-05）に `log`（`ver`・`id`・`entries`）として入れる。`id` はログの名札で、ログを作り始めたときに `crypto.randomUUID()` で作る。各記録は `n`（通し番号）・`t`（直近の `start` からの経過ミリ秒）・`op`（種類）・`cells`（操作後のマスの数）と、種類ごとの項目を持つ | ✅ |
-| LG-02 | 作業の区切り（`start`） | 起動したとき（`from: "new"`）、自動保存から復元したとき（`"autosave"`。自動保存のログを引き継ぐ）、Eclipse・VS Code から読み込んだとき（`"eclipse"`。ファイルのログがあれば引き継ぐ。IDE の中の作業はすべてこれで始まる）、ログ付きのファイルを開いたとき（`"open"`）に記録する。`at`（開始時刻）・`ver`（`SPD_CORE_VERSION`）・`lang` を持つ | ✅ |
+| LG-02 | 作業の区切り（`start`） | 起動したとき（`from: "new"`）、自動保存から復元したとき（`"autosave"`。自動保存のログを引き継ぐ）、Eclipse・VS Code から読み込んだとき（`"eclipse"`。ファイルのログがあれば引き継ぐ。IDE の中の作業はすべてこれで始まる）、ログ付きのファイルを開いたとき（`"open"`）、全消去したとき（`"clear"`。LG-11）に記録する。`at`（開始時刻）・`ver`（`SPD_CORE_VERSION`）・`lang` を持つ。Eclipse・VS Code の中では `ide: true` も付ける（v1.27.0） | ✅ |
 | LG-03 | ファイルを開く（`open`・`eclipse`） | ログ付きのファイルを開くと、そのファイルのログ（`id` を含む）を引き継いで続きを書く（昨日の続きを今日書くため）。ログの無いファイルなら今のログを続ける。どちらも、開いた内容の最低限の入力量 `units`・指紋 `h`・中身 `body` と、`hasLog`・`logId`（ファイルのログの `id`、無ければ `null`）を残す。Eclipse からの読み込み（`loadSpd`）は `eclipse` として `json`（JSON だったか）・`units`・`h`・`body` を残す | ✅ |
 | LG-04 | グリッドへの入力 | ボタンで記号・スタンプを置いたとき `sym`（`s`・`x`・`y`）。Enter／Shift+Enter で確定したとき `text`（`x`・`y`・`mode`＝`"ins"`／`"over"`／`"run"`、`text`、`len`＝文字数、`in`＝LG-05。テキストラン編集では初めから入っていた文字数 `base` も）。入力欄の中身を確定せずに捨てたとき（ESC・別のマスのクリック・ダブルクリックでの編集開始・`─` ボタン）、何か打っていれば `cancel`（`in`） | ✅ |
 | LG-05 | 入力欄の内訳（`in`） | 入力欄で起きたことを起きたその場で数える。`key`＝直接入力した文字数（`input` の `insertText`）、`ime`＝IME で確定した文字数（`compositionend`。変換中は数えない）、`paste`・`drop`＝貼り付け・ドロップで入った文字数、`btn`＝Shift+ボタン（TX-20）の回数、`del`＝消した文字数（選択して置き換えた分を含む）。テキストラン編集で初めから入っている文字列は数えない | ✅ |
@@ -693,6 +693,7 @@ SPD を答えさせる課題で、学生が AI の出力を使って解答して
 | LG-08 | 保存と写し | 保存したとき `save`（`file`＝ファイル名・`snap`＝その時点の `data`）。保存先が決まってから記録するので、ファイルには `save` まで入る。Eclipse・VS Code では、画面の「保存」ボタンと Ctrl+S（`requestEclipseSave()`）で記録し（`file` は `null`）、IDE のメニューからの保存は画面を通らないので記録されない。`getSpdText()` は編集のたびにも呼ばれる（VS Code の文書の更新、Eclipse のビューの保管）ので記録しない。50 操作ごと、または操作があれば 5 分ごとに `snap`（`data`） | ✅ |
 | LG-09 | 最低限の入力量（`units`） | `spd-core.js` の `countMinUnits(d, lang)`（`cells` なら `countCellsUnits`）で、ボタン（`btn`）と文字（`chr`）に分けて数える。R1 スタンプ（言語の 2 文字以上のボタン）は最長一致で 1 回、R2 スタンプに含まれない単文字の記号（`SPD_BORDER`）は 1 回、R3 `│` はそのマスだけを空けたとき自動補完（`colFill`）で現れれば 0・現れなければ 1、R4 そのほかの文字は 1 字 1（打った空白も 1、パディングの印は 0）、R5 Thymeleaf の括弧は開きで 1 回・閉じは 0、R6 スタンプの一覧は `lang` のもの。迷う場合は少なめに数える | ✅ |
 | LG-10 | 指紋（`h`） | `spdHash(cells)`。空白だけのマスを除き、内容のある左上を (0,0) にそろえ、パディングの印を除いた値の並びから 32 ビットの FNV-1a を作り、8 桁の 16 進で返す。Export の囲み記号や余白の詰め方に左右されないので、自分で Export したものの再 Import を見分けられる（改ざん対策ではない） | ✅ |
+| LG-11 | 全消去でログを始め直す（v1.27.0） | 全消去は新しい SPD を書き始める操作なので、今のログに `clear` を記録したあと、新しい名札（`id`）でログを始め直す（`start` の `from: "clear"`・`prev`＝前のログの `id`）。前の SPD のログ（開いた・Import した中身など）が新しい SPD に引き継がれ、集計画面で外部と数えられないようにするため。取り消し用の履歴の写しにはその時点のログを持たせ、全消去を取り消すと前のログに戻り（`undo` は前のログに記録）、やり直すと新しいログに戻る。全消去と取り消しで記録を消せないようにするため。全消去せずに別名で保存した場合は、元のファイルから作ったものなのでログを引き継ぐ | ✅ |
 
 > 集計・判定は先生用の別の画面（ルートの `spd-log-viewer.html`。同じフォルダの `spd-core.js` を読む。設計は `docs/作業ログの設計.md` の 7 章）で行う。エディタは記録するだけで、判定の結果は持たない。
 
@@ -1344,11 +1345,15 @@ spd-core.js（spd-editor.html と同じフォルダ。<script src="spd-core.js">
 
 作業ログ（spd-editor.html の初期化の直前）
   workLog = { ver, id, entries }、logT0（直近の start の時刻）
-  startLog(log, from)：log が { id: 文字列, entries: 配列 } なら引き継ぎ、無ければ newLogId() で作る → logOp("start")
+  startLog(log, from, extra)：log が { id: 文字列, entries: 配列 } なら引き継ぎ、無ければ newLogId() で作る → logOp("start")
+                       （IDE の中なら ide: true、extra の項目も足す）
                        exportHashes・lastCopyHash を空にする
   logOp(op, info)：{ n, t, op, ...info, cells } を entries に積む。start・snap・save 以外は opsSinceSnap を数え、
                    SNAP_OPS（50）で takeSnap()。save で数え直し。setInterval(30 秒) で SNAP_MS（5 分）を過ぎていれば takeSnap()
   logSave(file)：logOp("save", { file, snap: data の写し })
+  clearAll：logOp("clear") → startLog(null, "clear", { prev: 前の id })（LG-11）
+  takeSnapshot：{ s: { data, fileName } の JSON, log: workLog, t0: logT0 }。applySnapshot は log が今と違えば
+                workLog・logT0 を戻し、exportHashes・lastCopyHash を空にする（全消去をまたぐ取り消し・やり直し）
   logOpen(obj, file)：ログ付きなら startLog(obj.log, "open") → logOp("open", { units, hasLog, logId, h, body })
   入力欄：beforeinput で値と選択範囲を控え、input の inputType で capIn（key・paste・drop・del）を数える。
           insertCompositionText は数えず、compositionend の data で ime。insertIntoCap で btn・del
@@ -1638,3 +1643,4 @@ const MAX_UNDO = 50;  // アンドゥスタックの最大件数
 | 1.24.0 | 2026-11-03 | spd-editor.html | 機能追加：**パディングを印で保存し、Export で取り除く**（§3.5・TX-21・EI-11・EI-15・§7.9・§7.10b・§7.15）。グリッドの都合で入るパディング（TX-21）を、半角空白ではなく印 `\u001F`（`PAD`）としてマスに保存する（表示は空白）。Export は**言語モードに関係なく**印を取り除くので、`<<"、"で連結>>` が `<<"、" で連結>>` に、`<<"M月d日">>` が `<<"M月d 日">>` になって、Thymeleaf のコード生成で書式として扱われない問題や、文字列の中に空白が混じる問題が直る。テキストランの取り出し（`unpadHalfRun`）も印を取り除くだけにした。これにより、全角文字の直後に打った空白（`f"合計 {total}円"`）がパディングとみなされて入力欄で消えていた問題も直る。Import は同じ位置に印を入れる。v1.23.0 以前のファイルの半角空白は、打った空白として残す。開発中に作った Thymeleaf の `<<…>>` だけを推測で処理する方式（`unpadFormat()`）は採らなかった。root／1-python／2-java／3-C の4ファイルへ適用。表示バージョンを 1.24.0 に更新 |
 | 1.25.0 | 2026-11-08 | spd-editor.html, spd-core.js | 機能追加：**作業ログ**（§6.14 LG-01〜10・§3.5・§7.13f）。SPD を答えさせる課題で AI の出力を使っていないかを先生が確かめられるよう、内容を変える操作を記録し、保存ファイル・自動保存・Eclipse の `.spd` に `log`（`ver`・`id`・`entries`）として入れる。記号・スタンプ（`sym`）、文字の確定（`text`。入力欄で直接打った・IME で確定した・貼り付けた・ドロップした・消した文字数の内訳 `in` 付き）、入力の破棄（`cancel`）、編集（`erase` ほか）、セルのコピー・貼り付け、Export・Import（指紋 `h` で自分の Export の再 Import かを `self` に記録し、外からのものは中身 `body` も残す）、スケルトン、全消去、言語の切り替え、ファイルを開く・保存、50 操作か 5 分ごとの写し（`snap`）を記録する。ログ付きのファイルを開くと、そのログを引き継いで続きを書く。画面には何も表示しない。**共通の処理を `spd-core.js` に切り出した**（§7.1・§7.13f・§8）。記号の一覧、`colFill`（マスのデータを引数で受け取る形にした）、`parseSPDText`、パディングの判定と、新しく作った最低限の入力量の数え方（`countMinUnits`）・指紋（`spdHash`）を置き、先生用の集計画面（予定）からも使う。`spd-editor.html` と同じフォルダに置く（無いとエディタは止まる）。`renderToolbox` は言語ごとのボタンの並びを `toolSymbols()` から取る。root／1-python／2-java／3-C の4箇所に `spd-editor.html` と `spd-core.js` を置く。表示バージョンを 1.25.0 に更新 |
 | 1.26.0 | 2026-11-10 | spd-editor.html, spd-core.js, patterns/ | 機能追加：**Thymeleaf の `（）` ボタン**（§4.1〜§4.4）。Thymeleaf モードの2段目、`→` と `＜＞` の間に `（）` を追加した。他の括弧記号と同じく、配置後（Shift+クリックで入力欄へ挿入したときも）カーソルを括弧の中央に置き、最低限の入力量（R5）では開きで 1 回と数える。`BRACKET_SYMBOLS`・`BRACKET_TITLES` に追加。記号リスト `docs/記号リスト/thymeleaf-symbols.txt` にも追加。スケルトン：Spring に「メソッド」、Thymeleaf に「段落」「テキスト」「フォーム」などを追加・整理（`patterns/spring-patterns.js`・`patterns/thymeleaf-patterns.js`）。root／1-python／2-java／3-C の4箇所に `spd-editor.html`・`spd-core.js`・`patterns/` を置く。表示バージョンを 1.26.0 に更新 |
+| 1.27.0 | 2026-11-10 | spd-editor.html, spd-core.js, spd-log-viewer.html | 不具合修正：**全消去で作業ログを始め直す**（§6.14 LG-02・LG-11・§7.13f）。全消去しても前の SPD のログが続いていたため、全消去して新しい SPD を書き、別名で保存すると前の作業（開いた・Import した中身）が引き継がれ、集計画面で外部が多いと判定されていた（Eclipse で見つかった）。全消去では新しい名札でログを始め（`from: "clear"`・`prev`）、取り消し用の履歴にログを持たせて、全消去を取り消すと前のログに戻るようにした。IDE の中で始めたログには `ide: true` を付け、集計画面はこれも IDE の作業として扱い、開始の記録に「全消去」と前のログの名札を表示する |
