@@ -74,7 +74,7 @@ td.num, th.num{ text-align:right; font-variant-numeric:tabular-nums; white-space
 .fname{ display:inline-block; min-width:14em; word-break:break-all; }
 .tag{ display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; border:1px solid currentColor; white-space:nowrap; }
 .c-ext{ color:var(--red); } .c-skel{ color:var(--blue); } .c-reuse{ color:var(--green); }
-.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
+.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob, .c-undone{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
 .checks li{ margin:2px 0; }
 .ok{ color:var(--green); } .ng{ color:var(--red); } .na{ color:var(--muted); }
 pre.body{ margin:4px 0; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:4px;
@@ -348,6 +348,25 @@ function problemPrefix(log){
   return null;
 }
 
+/* すぐ元に戻した Import の位置の集まり。
+   Import の後、中身を変えない操作（保存・写し・Export・コピー）だけを挟んで「元に戻す」が来て、
+   マス数が Import の前に戻っていれば取り消しとみなす。その後すぐ「やり直す」が来たら取り消しではない。
+   Import の後に別の操作をしてから何度も元に戻した場合は拾わない（Import を外部に数えたままにする） */
+function undoneImports(es){
+  const NEUTRAL = new Set(["save", "snap", "export", "copy"]);
+  const next = j => { while (j < es.length && NEUTRAL.has((es[j] || {}).op)) j++; return j; };
+  const set = new Set();
+  for (let i = 1; i < es.length; i++){
+    if ((es[i] || {}).op !== "import") continue;
+    const u = next(i + 1);
+    if (u >= es.length || es[u].op !== "undo" || es[u].cells !== es[i - 1].cells) continue;
+    const r = next(u + 1);
+    if (r < es.length && es[r].op === "redo") continue;
+    set.add(i);
+  }
+  return set;
+}
+
 /* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
 function analyze(f){
   const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0,
@@ -373,6 +392,7 @@ function analyze(f){
   const pp = problemPrefix(log);   // 問題ファイルから引き継いだ先頭の記録（先生の作業）は数えない
   r.pfx = pp ? pp.k : 0;
   if (pp) useProb(pp.p);
+  const undone = undoneImports(es);   // すぐ元に戻した Import（外部には数えない）
   let prevT = null, lastCellsBefore = null, lastBeforeIdx = -1, inSeg = false;
   const nGap = [], inMismatch = [];
   for (let i = 0; i < es.length; i++){
@@ -416,6 +436,7 @@ function analyze(f){
       }
       case "paste": addU(r.reuse, e.units); cat = "reuse"; break;
       case "import": {
+        if (undone.has(i)){ cat = "undone"; break; }
         if (e.self){ addU(r.reuse, e.units); cat = "reuse"; break; }
         const u = e.units || U0();
         const ph = probByHash.get(e.h);
@@ -604,7 +625,7 @@ const OP_NAME = { start: "開始", open: "ファイルを開く", eclipse: "IDE 
   sym: "ボタン", text: "確定", cancel: "破棄", erase: "消しゴム", eraseIn: "その場削除", insCell: "マス挿入",
   insRow: "行挿入", delRow: "行削除", selDel: "範囲削除", move: "移動", undo: "元に戻す", redo: "やり直す",
   clear: "全消去", copy: "コピー", paste: "貼付け", export: "Export", import: "Import", skel: "スケルトン", snap: "写し" };
-const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録" };
+const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録", undone: "取り消し" };
 const FROM_NAME = { new: "起動", autosave: "自動保存から復元", eclipse: "IDE", open: "ログ付きのファイルを開く", clear: "全消去" };
 const isBulk = (e, cat) => cat !== "prob" && (["import", "paste", "skel", "open", "eclipse"].includes(e.op) || cat === "ext");
 let onlyBulk = false;
