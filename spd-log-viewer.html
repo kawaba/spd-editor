@@ -114,6 +114,7 @@ svg text{ fill:var(--muted); font-size:11px; }
 <section>
   <h2>判定の設定</h2>
   <div class="settings">
+    <label><input type="checkbox" id="setExam"> 試験として集計する（試験モードで作っていないファイルを 🔴 にする）</label>
     <label><input type="checkbox" id="setSkel" checked> スケルトンの使用を許す（許さないときは外部に数える）</label>
     <label>🔴 外部が最終解答（問題の分を除く）の <input type="number" id="setExt" min="0" step="1"> % 以上</label>
     <label>🔴 比率が <input type="number" id="setLow" min="0" step="0.05"> 未満</label>
@@ -162,11 +163,11 @@ if (typeof SPD_CORE_VERSION === "undefined"){
 }
 
 /* ===== 設定 ===== */
-const DEFAULTS = { skel: true, ext: 20, low: 1.0, high: 1.1, rework: 2, idle: 5 };
+const DEFAULTS = { exam: false, skel: true, ext: 20, low: 1.0, high: 1.1, rework: 2, idle: 5 };
 const SET_KEY = "spd-log-viewer-settings";
 let settings = Object.assign({}, DEFAULTS);
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); } catch(e){}
-const setEls = { skel: "setSkel", ext: "setExt", low: "setLow", high: "setHigh", rework: "setRework", idle: "setIdle" };
+const setEls = { exam: "setExam", skel: "setSkel", ext: "setExt", low: "setLow", high: "setHigh", rework: "setRework", idle: "setIdle" };
 function showSettings(){
   for (const k in setEls){
     const el = document.getElementById(setEls[k]);
@@ -456,6 +457,7 @@ function analyze(f){
   const log = file.log;
   if (!log || !Array.isArray(log.entries) || !log.entries.length){
     r.judge = "nolog"; r.reasons.push(file.json ? "ログがない" : "JSON でない（ログがない）");
+    if (settings.exam){ r.judge = "red"; r.examBad.push("試験モードで作っていない（ログがない）"); r.reasons = r.examBad.slice(); }
     return r;
   }
   r.hasLog = true; r.logId = log.id || null;
@@ -566,6 +568,13 @@ function analyze(f){
   //  ・「開く」は作業を始める前の 1 回だけか（自分の続きを開き直したものは除く）
   r.examBad = [];
   r.exam = es.some((e, i) => i >= r.pfx && e && e.op === "start" && e.exam);
+  if (settings.exam && !r.exam){                                // 試験として集計する設定：試験モードの印がないログ
+    const st = es.find((e, i) => i >= r.pfx && e && e.op === "start") || es[0] || { n: 0 };
+    viol(st, "試験モードで作っていない（試験モードの開始が 1 つもない）", null);
+    r.examBad.push("試験モードで作っていない");
+    r.checks.push({ s: "ng", m: "試験モードの印がない（ふつうの版で作ったファイル）" });
+    r.warnCount = r.checks.filter(c => c.s === "ng").length;
+  }
   if (r.exam){
     const nonExam = [], chainBad = [], openBad = [];
     const QUIET = new Set(["start", "open", "eclipse", "lang", "snap", "save", "export", "copy"]);
