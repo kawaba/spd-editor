@@ -74,7 +74,7 @@ td.num, th.num{ text-align:right; font-variant-numeric:tabular-nums; white-space
 .fname{ display:inline-block; min-width:14em; word-break:break-all; }
 .tag{ display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; border:1px solid currentColor; white-space:nowrap; }
 .c-ext{ color:var(--red); } .c-skel{ color:var(--blue); } .c-reuse{ color:var(--green); }
-.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob, .c-undone{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
+.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob, .c-undone, .c-dropped{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
 .checks li{ margin:2px 0; }
 .ok{ color:var(--green); } .ng{ color:var(--red); } .na{ color:var(--muted); }
 pre.body{ margin:4px 0; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:4px;
@@ -406,6 +406,32 @@ function undoneImports(es){
   return set;
 }
 
+/* 持ち込んだ中身（外からの Import・ファイルを開く・IDE で開く）を、ほかに何も足さないうちに全部消した位置の集まり。
+   持ち込んだ後、中身を足さない操作（保存・写し・Export・コピー・言語・移動・行の挿入と削除・消す操作・入力の破棄）だけで
+   マス数が 0 になれば、全部消したとみなす。0 になった直後に「元に戻す」が来たら（全消去の取り消しなど）消したとはみなさない。
+   途中で入力・貼り付け・スケルトン・元に戻す・やり直すなどがあれば拾わない（外部に数えたままにする） */
+function droppedBulk(es){
+  const PASS = new Set(["save", "snap", "export", "copy", "lang", "move", "insRow", "delRow", "selDel", "erase", "eraseIn", "clear", "cancel"]);
+  const NEUTRAL = new Set(["save", "snap", "export", "copy", "lang"]);
+  const set = new Set();
+  for (let i = 0; i < es.length; i++){
+    const e = es[i] || {};
+    if (!(e.op === "open" || e.op === "eclipse" || (e.op === "import" && !e.self))) continue;
+    if (!e.cells) continue;
+    for (let j = i + 1; j < es.length; j++){
+      const f = es[j] || {};
+      if (!PASS.has(f.op)) break;
+      if (f.cells === 0){
+        let k = j + 1;
+        while (k < es.length && NEUTRAL.has((es[k] || {}).op)) k++;
+        if (!(k < es.length && es[k].op === "undo")) set.add(i);
+        break;
+      }
+    }
+  }
+  return set;
+}
+
 /* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
 function analyze(f){
   const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0,
@@ -432,6 +458,7 @@ function analyze(f){
   r.pfx = pp ? pp.k : 0;
   if (pp) useProb(pp.p);
   const undone = undoneImports(es);   // すぐ元に戻した Import（外部には数えない）
+  const dropped = droppedBulk(es);    // 持ち込んで、何も足さないうちに全部消した中身（外部には数えない）
   let prevT = null, lastCellsBefore = null, lastBeforeIdx = -1, inSeg = false;
   const nGap = [], inMismatch = [];
   for (let i = 0; i < es.length; i++){
@@ -476,6 +503,7 @@ function analyze(f){
       case "paste": addU(r.reuse, e.units); cat = "reuse"; break;
       case "import": {
         if (undone.has(i)){ cat = "undone"; break; }
+        if (dropped.has(i)){ cat = "dropped"; break; }
         if (e.self){ addU(r.reuse, e.units); cat = "reuse"; break; }
         const u = e.units || U0();
         const ph = probByHash.get(e.h);
@@ -490,6 +518,7 @@ function analyze(f){
       case "open": case "eclipse": {
         const u = e.units || U0();
         if (!tot(u)){ cat = "none"; break; }
+        if (dropped.has(i)){ cat = "dropped"; break; }
         const inherited = i >= 2 && es[i - 1].op === "start" && (e.op === "eclipse" || e.hasLog);
         const sh = snapHashes.get(e.h);
         if (inherited && sh === "own"){ cat = "cont"; }
@@ -664,7 +693,7 @@ const OP_NAME = { start: "開始", open: "ファイルを開く", eclipse: "IDE 
   sym: "ボタン", text: "確定", cancel: "破棄", erase: "消しゴム", eraseIn: "その場削除", insCell: "マス挿入",
   insRow: "行挿入", delRow: "行削除", selDel: "範囲削除", move: "移動", undo: "元に戻す", redo: "やり直す",
   clear: "全消去", copy: "コピー", paste: "貼付け", export: "Export", import: "Import", skel: "スケルトン", snap: "写し" };
-const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録", undone: "取り消し" };
+const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録", undone: "取り消し", dropped: "全部消した" };
 const FROM_NAME = { new: "起動", autosave: "自動保存から復元", eclipse: "IDE", open: "ログ付きのファイルを開く", clear: "全消去" };
 const isBulk = (e, cat) => cat !== "prob" && (["import", "paste", "skel", "open", "eclipse"].includes(e.op) || cat === "ext");
 let onlyBulk = false;
