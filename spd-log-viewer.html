@@ -74,7 +74,7 @@ td.num, th.num{ text-align:right; font-variant-numeric:tabular-nums; white-space
 .fname{ display:inline-block; min-width:14em; word-break:break-all; }
 .tag{ display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; border:1px solid currentColor; white-space:nowrap; }
 .c-ext{ color:var(--red); } .c-skel{ color:var(--blue); } .c-reuse{ color:var(--green); }
-.c-given{ color:var(--violet); } .c-cont, .c-none, .c-prob, .c-undone, .c-dropped{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
+.c-given{ color:var(--violet); } .c-exam{ color:var(--red); font-weight:700; } .c-cont, .c-none, .c-prob, .c-undone, .c-dropped{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
 .checks li{ margin:2px 0; }
 .ok{ color:var(--green); } .ng{ color:var(--red); } .na{ color:var(--muted); }
 pre.body{ margin:4px 0; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:4px;
@@ -444,7 +444,7 @@ function droppedBulk(es){
 
 /* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
 function analyze(f){
-  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0, viol: [],
+  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0, viol: [], exam: false, examBad: [],
               typed: U0(), reuse: U0(), skel: U0(), ext: U0(), unk: U0(), given: U0(), split: [], pfx: 0, usedProb: 0, own: 0,
               del: 0, undo: 0, rework: 0, activeMs: 0, sessions: 0, noLogOpen: false, ide: false,
               checks: [], warnCount: 0, cat: [], entries: [], data: {}, judge: "", reasons: [] };
@@ -470,7 +470,7 @@ function analyze(f){
   const undone = undoneImports(es);   // すぐ元に戻した Import（外部には数えない）
   const dropped = droppedBulk(es);    // 持ち込んで、何も足さないうちに全部消した中身（外部には数えない）
   r.viol = [];                        // 決まりに反する持ち込み（外部に数えた操作）
-  const viol = (e, m, u) => r.viol.push({ n: e.n, t: e.t, m, u: tot(u || U0()) });
+  const viol = (e, m, u) => r.viol.push({ n: e.n, t: e.t, m, u: u ? tot(u) : null });
   let prevT = null, lastCellsBefore = null, lastBeforeIdx = -1, inSeg = false;
   const nGap = [], inMismatch = [];
   for (let i = 0; i < es.length; i++){
@@ -560,6 +560,41 @@ function analyze(f){
     r.cat.push(cat);
   }
 
+  // 試験モード（エディタ v1.28.0・LG-12）：開始に exam: true があれば試験のログとして調べる
+  //  ・すべての開始が試験モードか（途中でふつうの版で開いた回がないか）
+  //  ・鎖の指紋 hc が合っているか（記録を手で書き換えていないか）
+  //  ・「開く」は作業を始める前の 1 回だけか（自分の続きを開き直したものは除く）
+  r.examBad = [];
+  r.exam = es.some((e, i) => i >= r.pfx && e && e.op === "start" && e.exam);
+  if (r.exam){
+    const nonExam = [], chainBad = [], openBad = [];
+    const QUIET = new Set(["start", "open", "eclipse", "lang", "snap", "save", "export", "copy"]);
+    let inExam = false, seenContent = false, opens = 0;
+    for (let i = r.pfx; i < es.length; i++){
+      const e = es[i] || {};
+      if (e.op === "start"){ inExam = !!e.exam; if (!inExam) nonExam.push(e); }
+      if (inExam && e.hc !== logChainHash(i > 0 && es[i - 1] ? es[i - 1].hc : "", e)) chainBad.push(e);
+      if (e.op === "open" && e.units && tot(e.units) && r.cat[i] !== "cont"){
+        opens++;
+        if (seenContent || opens > 1) openBad.push(e);
+      }
+      if (!QUIET.has(e.op)) seenContent = true;
+    }
+    for (const e of nonExam) viol(e, "試験モードでない開始（ふつうの版で開いた）", null);
+    for (const e of openBad) viol(e, "試験中の「開く」（" + (opens > 1 ? "2 回目以降、または" : "") + "作業を始めてから）", null);
+    if (chainBad.length) viol(chainBad[0], "記録の鎖が合わない（n=" + chainBad.slice(0, 5).map(e => e.n).join(", ")
+                                          + (chainBad.length > 5 ? " ほか" : "") + "、" + chainBad.length + " 件）。書き換えた疑い", null);
+    r.checks.push(nonExam.length || chainBad.length
+      ? { s: "ng", m: "試験モードの記録に問題がある（試験モードでない開始 " + nonExam.length + " 回・鎖が合わない記録 " + chainBad.length + " 件）" }
+      : { s: "ok", m: "試験モードの記録（開始はすべて試験モードで、鎖の指紋も合っている）" });
+    r.warnCount = r.checks.filter(c => c.s === "ng").length;
+    if (nonExam.length) r.examBad.push("試験モードでない開始 " + nonExam.length + " 回");
+    if (openBad.length) r.examBad.push("試験中の「開く」" + openBad.length + " 回");
+    if (chainBad.length) r.examBad.push("記録の鎖が合わない " + chainBad.length + " 件");
+  }
+
+  r.viol.sort((a, b) => a.n - b.n);
+
   // 比率と判定
   // 問題として配った部分は、分子からも分母からも除く（学生が作る分だけで比べる。設計 7.8）。
   // 問題の分は、入ってきた量・使った問題の大きさ・最低限の小さい方（同じ問題を 2 回開いても 2 倍にしない）
@@ -594,11 +629,13 @@ function analyze(f){
   if (pp) r.checks.push({ s: "na", m: "先頭の " + pp.k + " 件（n=0〜" + (pp.k - 1) + "）は問題ファイル " + pp.name + " の記録なので数えない" });
   r.warnCount = r.checks.filter(c => c.s === "ng").length;
 
+  if (r.examBad.length && (!r.minTotal || !r.own)){ r.judge = "red"; r.reasons = r.examBad.slice(); return r; }
   if (!r.minTotal){ r.judge = ""; r.reasons.push("解答が空"); return r; }
   if (!r.own){ r.judge = ""; r.reasons.push("問題のまま（学生が作った部分がない）"); return r; }
   const red = [];
   if (r.extRate * 100 >= settings.ext) red.push("外部が " + pct(r.extRate) + "（" + settings.ext + "% 以上）");
   if (r.ratio < settings.low) red.push("比率が " + fx(r.ratio) + "（" + settings.low + " 未満）");
+  red.push(...r.examBad);                                   // 試験モードの記録の問題は、それだけで強い証拠
   if (red.length){ r.judge = "red"; r.reasons = red; }
   else if (r.noLogOpen){ r.judge = "nolog"; r.reasons.push("ログのないファイルを開いている"); }
   else if (r.ratio <= settings.high && r.rework / r.own * 100 < settings.rework){
@@ -623,7 +660,7 @@ const JUDGE_NAME = { red: "強い証拠あり", yellow: "確認を勧める", no
 
 const COLS_DEF = [
   { k: "judge", t: "判定", v: r => JUDGE_ORDER[r.judge], h: r => '<span class="judge" title="' + esc(r.reasons.join("\n")) + '">' + JUDGE[r.judge] + "</span>" },
-  { k: "name", t: "ファイル", v: r => r.name, h: r => '<span class="fname">' + esc(r.name) + "</span>" },
+  { k: "name", t: "ファイル", v: r => r.name, h: r => '<span class="fname">' + esc(r.name) + "</span>" + (r.exam ? ' <span class="tag c-exam">試験</span>' : "") },
   { k: "min", t: "最低限", num: 1, v: r => r.minTotal, h: r => r.error ? "" : bc(r.min) },
   { k: "typed", t: "入力", num: 1, v: r => tot(r.typed), h: r => r.hasLog ? bc(r.typed) : "" },
   { k: "ratio", t: "比率", num: 1, v: r => r.ratio == null ? -1 : r.ratio, h: r => r.hasLog ? fx(r.ratio) : "" },
@@ -637,7 +674,7 @@ const COLS_DEF = [
   { k: "warn", t: "整合", num: 1, v: r => r.warnCount, h: r => r.hasLog ? (r.warnCount ? '<span class="warn" title="' + esc(r.checks.filter(c => c.s === "ng").map(c => c.m).join("\n")) + '">⚠ ' + r.warnCount + "</span>" : "✓") : "" },
 ];
 const SUB = { min: "ボタン / 文字", typed: "ボタン / 文字", skel: "ボタン / 文字", given: "ボタン / 文字", ext: "単位（割合）", viol: "持ち込み" };
-const violText = v => "n=" + v.n + "（" + (typeof v.t === "number" ? Math.floor(v.t / 60000) + ":" + String(Math.floor(v.t / 1000) % 60).padStart(2, "0") : "") + "）" + v.m + " " + v.u + " 単位";
+const violText = v => "n=" + v.n + "（" + (typeof v.t === "number" ? Math.floor(v.t / 60000) + ":" + String(Math.floor(v.t / 1000) % 60).padStart(2, "0") : "") + "）" + v.m + (v.u == null ? "" : " " + v.u + " 単位");
 
 function recompute(){
   results = files.map(analyze);
@@ -728,7 +765,7 @@ function inText(i){
 const uText = u => u ? "ボタン " + u.btn + "・文字 " + u.chr : "";
 function opDesc(e){
   switch (e.op){
-    case "start": return (FROM_NAME[e.from] || e.from || "") + (e.ide && e.from !== "eclipse" ? "（IDE）" : "") + "　" + (e.at || "") + "　ver. " + (e.ver || "?") + "　" + (LANG_NAMES[e.lang] || e.lang || "")
+    case "start": return (e.exam ? '<span class="tag c-exam">試験</span> ' : "") + (FROM_NAME[e.from] || e.from || "") + (e.ide && e.from !== "eclipse" ? "（IDE）" : "") + "　" + (e.at || "") + "　ver. " + (e.ver || "?") + "　" + (LANG_NAMES[e.lang] || e.lang || "")
                        + (e.prev ? '　<span class="muted">前のログ ' + esc(e.prev) + "</span>" : "");
     case "open": return (e.file || "") + "　" + uText(e.units) + (e.hasLog ? "　ログ付き" : "　ログなし");
     case "eclipse": return (e.json ? "JSON" : "テキスト") + "　" + uText(e.units);
@@ -871,11 +908,11 @@ function graph(r){
 
 /* ===== CSV ===== */
 document.getElementById("btnCsv").onclick = () => {
-  const head = ["ファイル", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
+  const head = ["ファイル", "試験モード", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
     "外部ボタン", "外部文字", "外部の割合（学生の分に対して）", "スケルトンボタン", "スケルトン文字", "問題ボタン", "問題文字", "再利用ボタン", "再利用文字",
     "消した文字", "アンドゥ", "作業時間（分）", "作業回数", "整合の警告", "決まりに反する持ち込み（件）", "その内容", "ログID"];
   const q = v => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const rows = results.map(r => [r.name, JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
+  const rows = results.map(r => [r.name, r.exam ? "試験" : "", JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
     r.hasLog ? r.typed.btn : "", r.hasLog ? r.typed.chr : "", r.hasLog && r.ratio != null ? r.ratio.toFixed(3) : "",
     r.hasLog ? r.ext.btn : "", r.hasLog ? r.ext.chr : "", r.hasLog && r.extRate != null ? r.extRate.toFixed(3) : "",
     r.hasLog ? r.skel.btn : "", r.hasLog ? r.skel.chr : "", r.hasLog ? r.given.btn : "", r.hasLog ? r.given.chr : "", r.hasLog ? r.reuse.btn : "", r.hasLog ? r.reuse.chr : "",
