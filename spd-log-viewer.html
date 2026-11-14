@@ -408,7 +408,9 @@ function undoneImports(es){
 
 /* 持ち込んだ中身（外からの Import・ファイルを開く・IDE で開く）を、ほかに何も足さないうちに全部消した位置の集まり。
    持ち込んだ後、中身を足さない操作（保存・写し・Export・コピー・言語・移動・行の挿入と削除・消す操作・入力の破棄）だけで
-   マス数が 0 になれば、全部消したとみなす。0 になった直後に「元に戻す」が来たら（全消去の取り消しなど）消したとはみなさない。
+   マス数が持ち込んだ直後の 5% 以下（切り捨て。小さいときは 0）になれば、全部消したとみなす。
+   同じ中身の開き直し（「開始」の直後に、同じ指紋の中身を開く・IDE で開く）は挟まってもよい。
+   消した直後に「元に戻す」が来たら（全消去の取り消しなど）消したとはみなさない。
    途中で入力・貼り付け・スケルトン・元に戻す・やり直すなどがあれば拾わない（外部に数えたままにする） */
 function droppedBulk(es){
   const PASS = new Set(["save", "snap", "export", "copy", "lang", "move", "insRow", "delRow", "selDel", "erase", "eraseIn", "clear", "cancel"]);
@@ -418,10 +420,16 @@ function droppedBulk(es){
     const e = es[i] || {};
     if (!(e.op === "open" || e.op === "eclipse" || (e.op === "import" && !e.self))) continue;
     if (!e.cells) continue;
+    const limit = Math.floor(e.cells * 0.05);
     for (let j = i + 1; j < es.length; j++){
       const f = es[j] || {};
+      if (f.op === "start"){
+        const g = es[j + 1] || {};
+        if ((g.op === "open" || g.op === "eclipse") && g.h && g.h === e.h){ j++; continue; }   // 同じ中身の開き直し
+        break;
+      }
       if (!PASS.has(f.op)) break;
-      if (f.cells === 0){
+      if (f.cells <= limit){
         let k = j + 1;
         while (k < es.length && NEUTRAL.has((es[k] || {}).op)) k++;
         if (!(k < es.length && es[k].op === "undo")) set.add(i);
