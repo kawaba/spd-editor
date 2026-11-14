@@ -387,16 +387,18 @@ function problemPrefix(log){
   return null;
 }
 
-/* すぐ元に戻した Import の位置の集まり。
-   Import の後、中身を変えない操作（保存・写し・Export・コピー）だけを挟んで「元に戻す」が来て、
-   マス数が Import の前に戻っていれば取り消しとみなす。その後すぐ「やり直す」が来たら取り消しではない。
-   Import の後に別の操作をしてから何度も元に戻した場合は拾わない（Import を外部に数えたままにする） */
+/* すぐ元に戻した Import・入力欄への貼り付けの位置の集まり。
+   Import（または貼り付けを含む確定）の後、中身を変えない操作（保存・写し・Export・コピー）だけを挟んで「元に戻す」が来て、
+   マス数がその前に戻っていれば取り消しとみなす。その後すぐ「やり直す」が来たら取り消しではない。
+   後に別の操作をしてから何度も元に戻した場合は拾わない（外部に数えたままにする） */
+const hasPaste = e => e.op === "text" && e.in && ((e.in.paste || 0) + (e.in.drop || 0)) > 0;
 function undoneImports(es){
   const NEUTRAL = new Set(["save", "snap", "export", "copy"]);
   const next = j => { while (j < es.length && NEUTRAL.has((es[j] || {}).op)) j++; return j; };
   const set = new Set();
   for (let i = 1; i < es.length; i++){
-    if ((es[i] || {}).op !== "import") continue;
+    const e = es[i] || {};
+    if (e.op !== "import" && !hasPaste(e)) continue;
     const u = next(i + 1);
     if (u >= es.length || es[u].op !== "undo" || es[u].cells !== es[i - 1].cells) continue;
     const r = next(u + 1);
@@ -442,7 +444,7 @@ function droppedBulk(es){
 
 /* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
 function analyze(f){
-  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0,
+  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0, viol: [],
               typed: U0(), reuse: U0(), skel: U0(), ext: U0(), unk: U0(), given: U0(), split: [], pfx: 0, usedProb: 0, own: 0,
               del: 0, undo: 0, rework: 0, activeMs: 0, sessions: 0, noLogOpen: false, ide: false,
               checks: [], warnCount: 0, cat: [], entries: [], data: {}, judge: "", reasons: [] };
@@ -467,6 +469,8 @@ function analyze(f){
   if (pp) useProb(pp.p);
   const undone = undoneImports(es);   // すぐ元に戻した Import（外部には数えない）
   const dropped = droppedBulk(es);    // 持ち込んで、何も足さないうちに全部消した中身（外部には数えない）
+  r.viol = [];                        // 決まりに反する持ち込み（外部に数えた操作）
+  const viol = (e, m, u) => r.viol.push({ n: e.n, t: e.t, m, u: tot(u || U0()) });
   let prevT = null, lastCellsBefore = null, lastBeforeIdx = -1, inSeg = false;
   const nGap = [], inMismatch = [];
   for (let i = 0; i < es.length; i++){
@@ -493,13 +497,14 @@ function analyze(f){
     switch (e.op){
       case "sym": r.typed.btn++; cat = "typed"; break;
       case "text": case "cancel": {
+        if (undone.has(i)){ cat = "undone"; break; }   // 貼り付けてすぐ元に戻した確定
         r.typed.btn += inn.btn || 0;
         r.typed.chr += (inn.key || 0) + (inn.ime || 0);
         r.del += inn.del || 0;
         cat = "typed";
         if (e.op === "text"){
           const pd = (inn.paste || 0) + (inn.drop || 0);
-          if (pd){ r.ext.chr += pd; cat = "ext"; }
+          if (pd){ r.ext.chr += pd; cat = "ext"; viol(e, "入力欄への貼り付け", { btn: 0, chr: pd }); }
           // 入力欄の内訳と len の食い違い（4.4）
           const exp = (e.base || 0) + (inn.key || 0) + (inn.ime || 0) + pd - (inn.del || 0);
           const tol = Math.max(2, Math.ceil((e.len || 0) * 0.2));
@@ -512,16 +517,19 @@ function analyze(f){
       case "import": {
         if (undone.has(i)){ cat = "undone"; break; }
         if (dropped.has(i)){ cat = "dropped"; break; }
-        if (e.self){ addU(r.reuse, e.units); cat = "reuse"; break; }
+        // 自分の Export を戻す Import も、決まり（エディタの外を通した持ち込みはしない）により外部に数える
+        if (e.self){ addU(r.ext, e.units); cat = "ext"; viol(e, "自分の Export を Import で戻した", e.units); break; }
         const u = e.units || U0();
         const ph = probByHash.get(e.h);
         const sp = ph ? { name: ph.name, p: ph, given: u, ext: U0() } : splitByProblems(e.body, u, r.lang);
-        if (sp){ r.split[i] = sp; useProb(sp.p); addU(r.given, sp.given); addU(r.ext, sp.ext); cat = tot(sp.ext) ? "ext" : "given"; }
-        else { addU(r.ext, u); cat = "ext"; }
+        if (sp){ r.split[i] = sp; useProb(sp.p); addU(r.given, sp.given); addU(r.ext, sp.ext); cat = tot(sp.ext) ? "ext" : "given";
+                 if (tot(sp.ext)) viol(e, "外からの Import（問題と一致しない部分）", sp.ext); }
+        else { addU(r.ext, u); cat = "ext"; viol(e, "外からの Import", u); }
         break;
       }
       case "skel":
-        if (settings.skel){ addU(r.skel, e.units); cat = "skel"; } else { addU(r.ext, e.units); cat = "ext"; }
+        if (settings.skel){ addU(r.skel, e.units); cat = "skel"; }
+        else { addU(r.ext, e.units); cat = "ext"; viol(e, "スケルトン（使用を許さない設定）", e.units); }
         break;
       case "open": case "eclipse": {
         const u = e.units || U0();
@@ -539,7 +547,8 @@ function analyze(f){
           const x = sp ? sp.ext : u;
           if (sp){ r.split[i] = sp; addU(r.given, sp.given); useProb(sp.p); }
           if (inherited && e.op === "eclipse"){ addU(r.unk, x); cat = tot(x) ? "unk" : "given"; }   // IDE は保存が記録されないことがある
-          else { addU(r.ext, x); cat = tot(x) ? "ext" : "given"; }
+          else { addU(r.ext, x); cat = tot(x) ? "ext" : "given";
+                 if (tot(x)) viol(e, (e.op === "open" ? "ファイルを開いた中身" : "IDE で開いた中身（前の記録がない）") + (sp ? "（問題と一致しない部分）" : ""), x); }
         }
         if (e.op === "open" && !e.hasLog && cat !== "given") r.noLogOpen = true;
         break;
@@ -619,6 +628,7 @@ const COLS_DEF = [
   { k: "typed", t: "入力", num: 1, v: r => tot(r.typed), h: r => r.hasLog ? bc(r.typed) : "" },
   { k: "ratio", t: "比率", num: 1, v: r => r.ratio == null ? -1 : r.ratio, h: r => r.hasLog ? fx(r.ratio) : "" },
   { k: "ext", t: "外部", num: 1, v: r => r.extTotal || 0, h: r => r.hasLog ? r.extTotal + "（" + pct(r.extRate) + "）" : "" },
+  { k: "viol", t: "違反", num: 1, v: r => r.viol.length, h: r => r.hasLog ? (r.viol.length ? '<span class="warn" title="' + esc(r.viol.map(violText).join("\n")) + '">' + r.viol.length + " 件</span>" : "—") : "" },
   { k: "skel", t: "スケルトン", num: 1, v: r => tot(r.skel), h: r => r.hasLog ? bc(r.skel) : "" },
   { k: "given", t: "問題", num: 1, v: r => tot(r.given), h: r => r.hasLog ? bc(r.given) : "" },
   { k: "rework", t: "手戻り", num: 1, v: r => r.rework || 0, h: r => r.hasLog ? r.del + " 字・" + r.undo + " 回" : "" },
@@ -626,7 +636,8 @@ const COLS_DEF = [
   { k: "sess", t: "作業回数", num: 1, v: r => r.sessions, h: r => r.hasLog ? r.sessions : "" },
   { k: "warn", t: "整合", num: 1, v: r => r.warnCount, h: r => r.hasLog ? (r.warnCount ? '<span class="warn" title="' + esc(r.checks.filter(c => c.s === "ng").map(c => c.m).join("\n")) + '">⚠ ' + r.warnCount + "</span>" : "✓") : "" },
 ];
-const SUB = { min: "ボタン / 文字", typed: "ボタン / 文字", skel: "ボタン / 文字", given: "ボタン / 文字", ext: "単位（割合）" };
+const SUB = { min: "ボタン / 文字", typed: "ボタン / 文字", skel: "ボタン / 文字", given: "ボタン / 文字", ext: "単位（割合）", viol: "持ち込み" };
+const violText = v => "n=" + v.n + "（" + (typeof v.t === "number" ? Math.floor(v.t / 60000) + ":" + String(Math.floor(v.t / 1000) % 60).padStart(2, "0") : "") + "）" + v.m + " " + v.u + " 単位";
 
 function recompute(){
   results = files.map(analyze);
@@ -774,15 +785,18 @@ function renderDetail(){
   h += "<h3>要約</h3><div class=\"scroll\"><table><thead><tr><th></th><th class=\"num\">ボタン</th><th class=\"num\">文字</th><th class=\"num\">計</th><th class=\"num\">" + (r.givenBase ? "学生の分に対して" : "最低限に対して") + "</th><th></th></tr></thead><tbody>"
     + row("最低限の入力量", r.min, "最終解答から数えた量" + (r.givenBase ? "。うち問題の分 " + r.givenBase + " 単位、学生が作る分 " + r.own + " 単位" : ""), !!r.givenBase)
     + (r.hasLog ? row("打った量", r.typed, "ボタン・Shift+ボタン・打鍵・IME（破棄した分も含む）")
-      + row("自分のものの再利用", r.reuse, "セルの貼り付け・自分の Export の再 Import")
+      + row("自分のものの再利用", r.reuse, "エディタの中のセルの貼り付け")
       + row("スケルトン", r.skel, settings.skel ? "" : "（使用を許さない設定なので外部に数えている）")
       + row('<span class="c-given">問題</span>', r.given, "配った問題と同じ部分（開いた・Import した中身のうち）。比率には入れない", true)
-      + row('<span class="c-ext">外から持ち込んだ量</span>', r.ext, "外からの Import・ファイルを開く・IDE で開く・入力欄への貼り付け")
+      + row('<span class="c-ext">外から持ち込んだ量</span>', r.ext, "Import（自分の Export を戻したものも含む）・ファイルを開く・IDE で開く・入力欄への貼り付け")
       + (tot(r.unk) ? row('<span class="c-unk">要確認</span>', r.unk, "IDE で開いた内容が前の記録と一致しない") : "") : "")
     + "</tbody></table></div>";
   if (r.hasLog){
     h += '<p style="margin:6px 0">比率 <b>' + fx(r.ratio) + "</b>　手戻り " + r.del + " 字・アンドゥ " + r.undo + " 回（" + (r.givenBase ? "学生の分" : "最低限") + "の " + (r.own ? pct(r.rework / r.own) : "—")
       + "）　作業時間 " + fmtTime(r.activeMs) + "　作業回数 " + r.sessions + "</p>";
+    h += "<h3>決まりに反する持ち込み</h3>" + (r.viol.length
+      ? '<ul class="checks">' + r.viol.map(v => '<li class="ng">⚠ ' + esc(violText(v)) + "</li>").join("") + "</ul>"
+      : '<p class="muted small" style="margin:4px 0">なし（すぐ元に戻したもの・全部消したもの・配った問題と一致する部分は数えない）</p>');
     h += "<h3>整合性の確認</h3><ul class=\"checks\">" + r.checks.map(c => '<li class="' + c.s + '">' + ({ ok: "✓", ng: "⚠", na: "－" }[c.s]) + " " + esc(c.m) + "</li>").join("") + "</ul>";
     h += "<h3>経過</h3>" + graph(r);
     // 操作の一覧
@@ -859,14 +873,14 @@ function graph(r){
 document.getElementById("btnCsv").onclick = () => {
   const head = ["ファイル", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
     "外部ボタン", "外部文字", "外部の割合（学生の分に対して）", "スケルトンボタン", "スケルトン文字", "問題ボタン", "問題文字", "再利用ボタン", "再利用文字",
-    "消した文字", "アンドゥ", "作業時間（分）", "作業回数", "整合の警告", "ログID"];
+    "消した文字", "アンドゥ", "作業時間（分）", "作業回数", "整合の警告", "決まりに反する持ち込み（件）", "その内容", "ログID"];
   const q = v => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const rows = results.map(r => [r.name, JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
     r.hasLog ? r.typed.btn : "", r.hasLog ? r.typed.chr : "", r.hasLog && r.ratio != null ? r.ratio.toFixed(3) : "",
     r.hasLog ? r.ext.btn : "", r.hasLog ? r.ext.chr : "", r.hasLog && r.extRate != null ? r.extRate.toFixed(3) : "",
     r.hasLog ? r.skel.btn : "", r.hasLog ? r.skel.chr : "", r.hasLog ? r.given.btn : "", r.hasLog ? r.given.chr : "", r.hasLog ? r.reuse.btn : "", r.hasLog ? r.reuse.chr : "",
     r.hasLog ? r.del : "", r.hasLog ? r.undo : "", r.hasLog ? (r.activeMs / 60000).toFixed(1) : "", r.hasLog ? r.sessions : "",
-    r.hasLog ? r.warnCount : "", r.logId || ""]);
+    r.hasLog ? r.warnCount : "", r.hasLog ? r.viol.length : "", r.viol.map(violText).join("／"), r.logId || ""]);
   const csv = "﻿" + [head, ...rows].map(a => a.map(q).join(",")).join("\r\n") + "\r\n";
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
