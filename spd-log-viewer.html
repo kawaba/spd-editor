@@ -210,12 +210,26 @@ document.getElementById("pickDir").onchange = e => {
   readFileObjs([...e.target.files].filter(f => wanted(f.name)), f => f.webkitRelativePath || f.name).then(addFiles);
   e.target.value = "";
 };
-/* フォルダのドロップは webkitGetAsEntry でたどる（相対パスを名前にする） */
+/* ドロップしたファイル・フォルダを読む（フォルダの中はたどり、相対パスを名前にする）。
+   file:// で開いたとき、Chrome では webkitGetAsEntry の entry.file() が EncodingError で失敗するので、
+   まず getAsFileSystemHandle（Chrome・Edge）でたどる。使えないブラウザだけ webkitGetAsEntry、最後に getAsFile。
+   直接落としたファイルは拡張子を問わない。フォルダの中は .json・.spd だけ */
+async function walkHandle(h, path, top, out){
+  if (h.kind === "file"){
+    if (!top && !wanted(h.name)) return;
+    out.list.push(h.getFile().then(f => f.text()).then(text => ({ name: path, text })));
+  } else if (h.kind === "directory"){
+    const subs = [];
+    for await (const c of h.values()) subs.push(walkHandle(c, path + "/" + c.name, false, out));
+    await Promise.all(subs);
+  }
+}
 function walkEntry(entry, out, top){
   return new Promise(res => {
     if (entry.isFile){
-      if (!top && !wanted(entry.name)){ res(); return; }   // 直接落としたファイルは拡張子を問わない
-      entry.file(f => { out.list.push(f.text().then(text => ({ name: entry.fullPath.replace(/^\//, ""), text }))); res(); }, () => res());
+      if (!top && !wanted(entry.name)){ res(); return; }
+      entry.file(f => { out.list.push(f.text().then(text => ({ name: entry.fullPath.replace(/^\//, ""), text }))); res(); },
+                 () => { out.failed++; res(); });
     } else if (entry.isDirectory){
       const rd = entry.createReader(), all = [];
       const next = () => rd.readEntries(es => {
@@ -224,24 +238,49 @@ function walkEntry(entry, out, top){
           return;
         }
         all.push(...es); next();
-      }, () => res());
+      }, () => { out.failed++; res(); });
       next();
     } else res();
   });
+}
+/* 1 項目を読む。handleP・entry・file はドロップの間に取り出しておいたもの（後からは取り出せない） */
+async function readDropped({ handleP, entry, file }, out){
+  if (handleP){
+    try {
+      const h = await handleP;
+      if (h){ await walkHandle(h, h.name, true, out); return; }
+    } catch(e){ /* 下の方法で読む */ }
+  }
+  if (entry && entry.isDirectory){ await walkEntry(entry, out, true); return; }
+  if (file){ out.list.push(file.text().then(text => ({ name: file.name, text }))); return; }
+  if (entry){ await walkEntry(entry, out, true); return; }
+  out.failed++;
 }
 const dropEl = document.getElementById("drop");
 dropEl.addEventListener("dragover", e => { e.preventDefault(); dropEl.classList.add("over"); });
 dropEl.addEventListener("dragleave", () => dropEl.classList.remove("over"));
 dropEl.addEventListener("drop", e => {
   e.preventDefault(); dropEl.classList.remove("over");
-  const items = [...(e.dataTransfer.items || [])];
-  const entries = items.map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
-  if (entries.length){
-    const out = { list: [] };
-    Promise.all(entries.map(en => walkEntry(en, out, true))).then(() => Promise.all(out.list)).then(addFiles);
-  } else {
-    readFileObjs([...e.dataTransfer.files], f => f.name).then(addFiles);
-  }
+  const items = [...(e.dataTransfer.items || [])].filter(it => it.kind === "file");
+  const got = items.length
+    ? items.map(it => ({
+        handleP: it.getAsFileSystemHandle ? it.getAsFileSystemHandle() : null,
+        entry: it.webkitGetAsEntry ? it.webkitGetAsEntry() : null,
+        file: it.getAsFile ? it.getAsFile() : null }))
+    : [...e.dataTransfer.files].map(file => ({ handleP: null, entry: null, file }));
+  if (!got.length) return;
+  const out = { list: [], failed: 0 };
+  Promise.all(got.map(g => readDropped(g, out)))
+    .then(() => Promise.allSettled(out.list))
+    .then(rs => {
+      const ok = rs.filter(r => r.status === "fulfilled").map(r => r.value);
+      const failed = out.failed + rs.length - ok.length;
+      if (ok.length) addFiles(ok);
+      if (!ok.length && !failed) alert("読み込める .json・.spd ファイルがありませんでした。");
+      else if (failed)
+        alert((ok.length ? ok.length + " 件は読み込みましたが、" + failed + " 件は" : "") + "ドロップしたものを読み込めませんでした。"
+              + "「ファイルを選ぶ」か「フォルダを選ぶ」で読み込んでください。");
+    });
 });
 document.addEventListener("dragover", e => e.preventDefault());
 document.addEventListener("drop", e => e.preventDefault());
