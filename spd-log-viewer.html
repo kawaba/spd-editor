@@ -74,7 +74,7 @@ td.num, th.num{ text-align:right; font-variant-numeric:tabular-nums; white-space
 .fname{ display:inline-block; min-width:14em; word-break:break-all; }
 .tag{ display:inline-block; font-size:11px; padding:0 6px; border-radius:8px; border:1px solid currentColor; white-space:nowrap; }
 .c-ext{ color:var(--red); } .c-skel{ color:var(--blue); } .c-reuse{ color:var(--green); }
-.c-given{ color:var(--violet); } .c-exam{ color:var(--red); font-weight:700; } .c-cont, .c-none, .c-prob, .c-undone, .c-dropped{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
+.c-given{ color:var(--violet); } .c-exam{ color:var(--red); font-weight:700; } .c-imp{ color:var(--blue); font-weight:700; } .c-cont, .c-none, .c-prob, .c-undone, .c-dropped{ color:var(--gray); } .c-unk{ color:var(--yellow); } .c-typed{ color:var(--text); }
 .checks li{ margin:2px 0; }
 .ok{ color:var(--green); } .ng{ color:var(--red); } .na{ color:var(--muted); }
 pre.body{ margin:4px 0; padding:6px 8px; background:var(--bg); border:1px solid var(--line); border-radius:4px;
@@ -114,7 +114,8 @@ svg text{ fill:var(--muted); font-size:11px; }
 <section>
   <h2>判定の設定</h2>
   <div class="settings">
-    <label><input type="checkbox" id="setExam"> 試験として集計する（試験モードで作っていないファイルを 🔴 にする）</label>
+    <label>求めるモード <select id="setMode"><option value="">指定なし</option><option value="default">デフォルト（課題）</option><option value="exam">試験</option></select>
+      （ほかのモードで開いた回があるファイル・ログのないファイルを 🔴 にする）</label>
     <label><input type="checkbox" id="setSkel" checked> スケルトンの使用を許す（許さないときは外部に数える）</label>
     <label>🔴 外部が最終解答（問題の分を除く）の <input type="number" id="setExt" min="0" step="1"> % 以上</label>
     <label>🔴 比率が <input type="number" id="setLow" min="0" step="0.05"> 未満</label>
@@ -163,21 +164,27 @@ if (typeof SPD_CORE_VERSION === "undefined"){
 }
 
 /* ===== 設定 ===== */
-const DEFAULTS = { exam: false, skel: true, ext: 20, low: 1.0, high: 1.1, rework: 2, idle: 5 };
+const DEFAULTS = { mode: "", skel: true, ext: 20, low: 1.0, high: 1.1, rework: 2, idle: 5 };
 const SET_KEY = "spd-log-viewer-settings";
 let settings = Object.assign({}, DEFAULTS);
-try { Object.assign(settings, JSON.parse(localStorage.getItem(SET_KEY) || "{}")); } catch(e){}
-const setEls = { exam: "setExam", skel: "setSkel", ext: "setExt", low: "setLow", high: "setHigh", rework: "setRework", idle: "setIdle" };
+try {
+  const saved = JSON.parse(localStorage.getItem(SET_KEY) || "{}");
+  if (saved.exam && !saved.mode) saved.mode = "exam";        // v1.28.0 の「試験として集計する」を引き継ぐ
+  delete saved.exam;
+  Object.assign(settings, saved);
+} catch(e){}
+const setEls = { mode: "setMode", skel: "setSkel", ext: "setExt", low: "setLow", high: "setHigh", rework: "setRework", idle: "setIdle" };
 function showSettings(){
   for (const k in setEls){
     const el = document.getElementById(setEls[k]);
-    if (el.type === "checkbox") el.checked = !!settings[k]; else el.value = settings[k];
+    if (el.type === "checkbox") el.checked = !!settings[k]; else el.value = settings[k];   // select もここ
   }
 }
 function readSettings(){
   for (const k in setEls){
     const el = document.getElementById(setEls[k]);
     if (el.type === "checkbox") settings[k] = el.checked;
+    else if (el.tagName === "SELECT") settings[k] = el.value;
     else { const v = parseFloat(el.value); if (isFinite(v) && v >= 0) settings[k] = v; }
   }
   try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch(e){}
@@ -186,6 +193,9 @@ function readSettings(){
 for (const k in setEls) document.getElementById(setEls[k]).addEventListener("change", readSettings);
 document.getElementById("btnReset").onclick = () => { settings = Object.assign({}, DEFAULTS); showSettings(); readSettings(); };
 showSettings();
+
+/* 利用モードの名前（エディタ v1.29.0・LG-13） */
+const MODE_NAME = { default: "デフォルト", import: "Import 許可", exam: "試験", old: "旧版（モードの記録なし）" };
 
 /* ===== 読み込み ===== */
 let files = [];          // { name, text }
@@ -445,7 +455,7 @@ function droppedBulk(es){
 
 /* 1 ファイルを解析する（設計 5 章・7.3・7.4・7.8） */
 function analyze(f){
-  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0, viol: [], exam: false, examBad: [],
+  const r = { name: f.name, error: null, hasLog: false, logId: null, lang: "", min: U0(), minTotal: 0, viol: [], exam: false, modes: [], modeBad: [],
               typed: U0(), reuse: U0(), skel: U0(), ext: U0(), unk: U0(), given: U0(), split: [], pfx: 0, usedProb: 0, own: 0,
               del: 0, undo: 0, rework: 0, activeMs: 0, sessions: 0, noLogOpen: false, ide: false,
               checks: [], warnCount: 0, cat: [], entries: [], data: {}, judge: "", reasons: [] };
@@ -457,7 +467,7 @@ function analyze(f){
   const log = file.log;
   if (!log || !Array.isArray(log.entries) || !log.entries.length){
     r.judge = "nolog"; r.reasons.push(file.json ? "ログがない" : "JSON でない（ログがない）");
-    if (settings.exam){ r.judge = "red"; r.examBad.push("試験モードで作っていない（ログがない）"); r.reasons = r.examBad.slice(); }
+    if (settings.mode){ r.judge = "red"; r.modeBad.push("ログがない（" + MODE_NAME[settings.mode] + "モードで作ったか確かめられない）"); r.reasons = r.modeBad.slice(); }
     return r;
   }
   r.hasLog = true; r.logId = log.id || null;
@@ -562,44 +572,54 @@ function analyze(f){
     r.cat.push(cat);
   }
 
-  // 試験モード（エディタ v1.28.0・LG-12）：開始に exam: true があれば試験のログとして調べる
-  //  ・すべての開始が試験モードか（途中でふつうの版で開いた回がないか）
-  //  ・鎖の指紋 hc が合っているか（記録を手で書き換えていないか）
-  //  ・「開く」は作業を始める前の 1 回だけか（自分の続きを開き直したものは除く）
-  r.examBad = [];
-  r.exam = es.some((e, i) => i >= r.pfx && e && e.op === "start" && e.exam);
-  if (settings.exam && !r.exam){                                // 試験として集計する設定：試験モードの印がないログ
-    const st = es.find((e, i) => i >= r.pfx && e && e.op === "start") || es[0] || { n: 0 };
-    viol(st, "試験モードで作っていない（試験モードの開始が 1 つもない）", null);
-    r.examBad.push("試験モードで作っていない");
-    r.checks.push({ s: "ng", m: "試験モードの印がない（ふつうの版で作ったファイル）" });
-    r.warnCount = r.checks.filter(c => c.s === "ng").length;
-  }
-  if (r.exam){
-    const nonExam = [], chainBad = [], openBad = [];
+  // 利用モード（エディタ v1.29.0・LG-13。v1.28.0 の試験モード LG-12 を含む）
+  //  ・求めるモード（設定。試験の開始があるログは設定が無くても試験）と違うモードで開いた回がないか
+  //    （デフォルトを求めるときは試験も認める。試験はデフォルトと同じく Import と貼り付けを使えないので）
+  //  ・鎖の指紋 hc が合っているか（記録を手で書き換えていないか）。hc はモードの記録がある回（v1.29.0〜と試験）だけ
+  //  ・試験では、「開く」は作業を始める前の 1 回だけか（自分の続きを開き直したものは除く）
+  r.modeBad = [];
+  const starts = es.filter((e, i) => i >= r.pfx && e && e.op === "start");
+  r.modes = [...new Set(starts.map(startMode))];
+  r.exam = r.modes.includes("exam");
+  const want = settings.mode || (r.exam ? "exam" : "");
+  const okMode = m => m === want || (want === "default" && m === "exam");
+  {
+    const wrong = [], chainBad = [], openBad = [];
     const QUIET = new Set(["start", "open", "eclipse", "lang", "snap", "save", "export", "copy"]);
-    let inExam = false, seenContent = false, opens = 0;
+    let mode = "old", seenContent = false, opens = 0;
     for (let i = r.pfx; i < es.length; i++){
       const e = es[i] || {};
-      if (e.op === "start"){ inExam = !!e.exam; if (!inExam) nonExam.push(e); }
-      if (inExam && e.hc !== logChainHash(i > 0 && es[i - 1] ? es[i - 1].hc : "", e)) chainBad.push(e);
-      if (e.op === "open" && e.units && tot(e.units) && r.cat[i] !== "cont"){
+      if (e.op === "start"){ mode = startMode(e); if (want && !okMode(mode)) wrong.push(e); }
+      if (mode !== "old" && e.hc !== logChainHash(i > 0 && es[i - 1] ? es[i - 1].hc : "", e)) chainBad.push(e);
+      if (want === "exam" && e.op === "open" && e.units && tot(e.units) && r.cat[i] !== "cont"){
         opens++;
         if (seenContent || opens > 1) openBad.push(e);
       }
       if (!QUIET.has(e.op)) seenContent = true;
     }
-    for (const e of nonExam) viol(e, "試験モードでない開始（ふつうの版で開いた）", null);
+    const wantName = MODE_NAME[want];
+    for (const e of wrong) viol(e, wantName + "モードでない開始（" + MODE_NAME[startMode(e)] + "で開いた）", null);
+    if (want && !starts.length) viol(es[r.pfx] || es[0] || { n: 0 }, "開始の記録がない（" + wantName + "モードで作ったか確かめられない）", null);
     for (const e of openBad) viol(e, "試験中の「開く」（" + (opens > 1 ? "2 回目以降、または" : "") + "作業を始めてから）", null);
     if (chainBad.length) viol(chainBad[0], "記録の鎖が合わない（n=" + chainBad.slice(0, 5).map(e => e.n).join(", ")
                                           + (chainBad.length > 5 ? " ほか" : "") + "、" + chainBad.length + " 件）。書き換えた疑い", null);
-    r.checks.push(nonExam.length || chainBad.length
-      ? { s: "ng", m: "試験モードの記録に問題がある（試験モードでない開始 " + nonExam.length + " 回・鎖が合わない記録 " + chainBad.length + " 件）" }
-      : { s: "ok", m: "試験モードの記録（開始はすべて試験モードで、鎖の指紋も合っている）" });
+    if (want){
+      r.checks.push(wrong.length || !starts.length
+        ? { s: "ng", m: wantName + "モードでない開始がある（" + (starts.length ? wrong.length + " 回／開始 " + starts.length + " 回" : "開始の記録がない") + "）" }
+        : { s: "ok", m: "開始はすべて" + wantName + "モード" + (want === "default" && r.exam ? "か試験モード" : "") + "（" + starts.length + " 回）" });
+    } else if (r.modes.length){
+      r.checks.push({ s: "na", m: "モード：" + r.modes.map(m => MODE_NAME[m]).join("・") + "（求めるモードは指定なし）" });
+    }
+    if (r.modes.some(m => m !== "old")){
+      r.checks.push(chainBad.length
+        ? { s: "ng", m: "記録の鎖が合わない記録が " + chainBad.length + " 件ある（書き換えた疑い）" }
+        : { s: "ok", m: "記録の鎖の指紋は合っている" });
+    }
     r.warnCount = r.checks.filter(c => c.s === "ng").length;
-    if (nonExam.length) r.examBad.push("試験モードでない開始 " + nonExam.length + " 回");
-    if (openBad.length) r.examBad.push("試験中の「開く」" + openBad.length + " 回");
-    if (chainBad.length) r.examBad.push("記録の鎖が合わない " + chainBad.length + " 件");
+    if (wrong.length) r.modeBad.push(wantName + "モードでない開始 " + wrong.length + " 回");
+    if (want && !starts.length) r.modeBad.push("開始の記録がない");
+    if (openBad.length) r.modeBad.push("試験中の「開く」" + openBad.length + " 回");
+    if (chainBad.length) r.modeBad.push("記録の鎖が合わない " + chainBad.length + " 件");
   }
 
   r.viol.sort((a, b) => a.n - b.n);
@@ -638,13 +658,13 @@ function analyze(f){
   if (pp) r.checks.push({ s: "na", m: "先頭の " + pp.k + " 件（n=0〜" + (pp.k - 1) + "）は問題ファイル " + pp.name + " の記録なので数えない" });
   r.warnCount = r.checks.filter(c => c.s === "ng").length;
 
-  if (r.examBad.length && (!r.minTotal || !r.own)){ r.judge = "red"; r.reasons = r.examBad.slice(); return r; }
+  if (r.modeBad.length && (!r.minTotal || !r.own)){ r.judge = "red"; r.reasons = r.modeBad.slice(); return r; }
   if (!r.minTotal){ r.judge = ""; r.reasons.push("解答が空"); return r; }
   if (!r.own){ r.judge = ""; r.reasons.push("問題のまま（学生が作った部分がない）"); return r; }
   const red = [];
   if (r.extRate * 100 >= settings.ext) red.push("外部が " + pct(r.extRate) + "（" + settings.ext + "% 以上）");
   if (r.ratio < settings.low) red.push("比率が " + fx(r.ratio) + "（" + settings.low + " 未満）");
-  red.push(...r.examBad);                                   // 試験モードの記録の問題は、それだけで強い証拠
+  red.push(...r.modeBad);                                   // モードと記録の鎖の問題は、それだけで強い証拠
   if (red.length){ r.judge = "red"; r.reasons = red; }
   else if (r.noLogOpen){ r.judge = "nolog"; r.reasons.push("ログのないファイルを開いている"); }
   else if (r.ratio <= settings.high && r.rework / r.own * 100 < settings.rework){
@@ -669,7 +689,7 @@ const JUDGE_NAME = { red: "強い証拠あり", yellow: "確認を勧める", no
 
 const COLS_DEF = [
   { k: "judge", t: "判定", v: r => JUDGE_ORDER[r.judge], h: r => '<span class="judge" title="' + esc(r.reasons.join("\n")) + '">' + JUDGE[r.judge] + "</span>" },
-  { k: "name", t: "ファイル", v: r => r.name, h: r => '<span class="fname">' + esc(r.name) + "</span>" + (r.exam ? ' <span class="tag c-exam">試験</span>' : "") },
+  { k: "name", t: "ファイル", v: r => r.name, h: r => '<span class="fname">' + esc(r.name) + "</span>" + r.modes.map(m => modeTag(m, " ")).join("") },
   { k: "min", t: "最低限", num: 1, v: r => r.minTotal, h: r => r.error ? "" : bc(r.min) },
   { k: "typed", t: "入力", num: 1, v: r => tot(r.typed), h: r => r.hasLog ? bc(r.typed) : "" },
   { k: "ratio", t: "比率", num: 1, v: r => r.ratio == null ? -1 : r.ratio, h: r => r.hasLog ? fx(r.ratio) : "" },
@@ -759,6 +779,15 @@ const OP_NAME = { start: "開始", open: "ファイルを開く", eclipse: "IDE 
   insRow: "行挿入", delRow: "行削除", selDel: "範囲削除", move: "移動", undo: "元に戻す", redo: "やり直す",
   clear: "全消去", copy: "コピー", paste: "貼付け", export: "Export", import: "Import", skel: "スケルトン", snap: "写し" };
 const CAT_NAME = { ext: "外部", skel: "スケルトン", reuse: "再利用", cont: "自分の続き", unk: "要確認", given: "問題", prob: "問題の記録", undone: "取り消し", dropped: "全部消した" };
+/* 開始の記録のモード（LG-13）。mode が無いものは、試験の印があれば試験、無ければ旧版（v1.28.0 以前。Import を使えた） */
+function startMode(e){
+  return e && MODE_NAME[e.mode] && e.mode !== "old" ? e.mode : e && e.exam ? "exam" : "old";
+}
+/* 一覧・経過に出す札。デフォルトは札を出さない */
+function modeTag(m, pre, post){
+  const t = { exam: ["c-exam", "試験"], import: ["c-imp", "Import 可"], old: ["c-none", "旧版"] }[m];
+  return t ? (pre || "") + '<span class="tag ' + t[0] + '" title="' + MODE_NAME[m] + '">' + t[1] + "</span>" + (post || "") : "";
+}
 const FROM_NAME = { new: "起動", autosave: "自動保存から復元", eclipse: "IDE", open: "ログ付きのファイルを開く", clear: "全消去" };
 const isBulk = (e, cat) => cat !== "prob" && (["import", "paste", "skel", "open", "eclipse"].includes(e.op) || cat === "ext");
 let onlyBulk = false;
@@ -774,7 +803,7 @@ function inText(i){
 const uText = u => u ? "ボタン " + u.btn + "・文字 " + u.chr : "";
 function opDesc(e){
   switch (e.op){
-    case "start": return (e.exam ? '<span class="tag c-exam">試験</span> ' : "") + (FROM_NAME[e.from] || e.from || "") + (e.ide && e.from !== "eclipse" ? "（IDE）" : "") + "　" + (e.at || "") + "　ver. " + (e.ver || "?") + "　" + (LANG_NAMES[e.lang] || e.lang || "")
+    case "start": return modeTag(startMode(e), "", " ") + (FROM_NAME[e.from] || e.from || "") + (e.ide && e.from !== "eclipse" ? "（IDE）" : "") + "　" + (e.at || "") + "　ver. " + (e.ver || "?") + "　" + (LANG_NAMES[e.lang] || e.lang || "")
                        + (e.prev ? '　<span class="muted">前のログ ' + esc(e.prev) + "</span>" : "");
     case "open": return (e.file || "") + "　" + uText(e.units) + (e.hasLog ? "　ログ付き" : "　ログなし");
     case "eclipse": return (e.json ? "JSON" : "テキスト") + "　" + uText(e.units);
@@ -917,11 +946,11 @@ function graph(r){
 
 /* ===== CSV ===== */
 document.getElementById("btnCsv").onclick = () => {
-  const head = ["ファイル", "試験モード", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
+  const head = ["ファイル", "モード", "判定", "理由", "最低限ボタン", "最低限文字", "入力ボタン", "入力文字", "比率",
     "外部ボタン", "外部文字", "外部の割合（学生の分に対して）", "スケルトンボタン", "スケルトン文字", "問題ボタン", "問題文字", "再利用ボタン", "再利用文字",
     "消した文字", "アンドゥ", "作業時間（分）", "作業回数", "整合の警告", "決まりに反する持ち込み（件）", "その内容", "ログID"];
   const q = v => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const rows = results.map(r => [r.name, r.exam ? "試験" : "", JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
+  const rows = results.map(r => [r.name, r.modes.map(m => MODE_NAME[m]).join("・"), JUDGE_NAME[r.judge], r.reasons.join("／"), r.min.btn, r.min.chr,
     r.hasLog ? r.typed.btn : "", r.hasLog ? r.typed.chr : "", r.hasLog && r.ratio != null ? r.ratio.toFixed(3) : "",
     r.hasLog ? r.ext.btn : "", r.hasLog ? r.ext.chr : "", r.hasLog && r.extRate != null ? r.extRate.toFixed(3) : "",
     r.hasLog ? r.skel.btn : "", r.hasLog ? r.skel.chr : "", r.hasLog ? r.given.btn : "", r.hasLog ? r.given.chr : "", r.hasLog ? r.reuse.btn : "", r.hasLog ? r.reuse.chr : "",
